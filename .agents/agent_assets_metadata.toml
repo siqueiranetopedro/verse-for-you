@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "cyuIFPIjfURfM8nxsbIBZ"
+uri = "file://verse-for-you.tar.gz"
+type = "unspecified"
+title = "Verse for You - Full Project Code"

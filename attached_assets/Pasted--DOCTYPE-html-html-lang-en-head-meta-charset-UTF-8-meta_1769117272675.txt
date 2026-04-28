@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Daily Bible Verse</title>
+    <meta name="description" content="Get daily inspirational Bible verses">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bible Verse">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath fill='%23000' d='M96 0C60.7 0 32 28.7 32 64V448c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V64c0-35.3-28.7-64-64-64H96zM208 288c0-8.8 7.2-16 16-16h64c8.8 0 16 7.2 16 16s-7.2 16-16 16H224c-8.8 0-16-7.2-16-16zm16-96h64c8.8 0 16 7.2 16 16s-7.2 16-16 16H224c-8.8 0-16-7.2-16-16s7.2-16 16-16z'/%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            min-height: 100dvh; /* Dynamic viewport height for mobile */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            color: #2c3e50;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overscroll-behavior: none; /* Prevent pull-to-refresh */
+        }
+
+        .container {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 48px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05),
+                        0 8px 16px rgba(0, 0, 0, 0.03);
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .feeling-button {
+            background: #000 !important;
+            color: white !important;
+            font-size: 1rem !important;
+            padding: 16px 32px !important;
+            min-width: 140px !important;
+            box-shadow: none !important;
+        }
+
+        .feeling-button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.4) !important;
+            background: linear-gradient(135deg, #1a202c 0%, #4a5568 100%) !important;
+        }
+
+        .emotional-container {
+            margin: 30px 0;
+            padding: 30px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border-left: 4px solid #000;
+        }
+
+        .emotional-container h3 {
+            margin-bottom: 20px;
+            color: #2d3748;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        #emotionInput {
+            padding: 16px 24px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 20px auto;
+            display: block;
+            outline: none;
+            transition: border-color 0.2s ease;
+            text-align: center;
+        }
+
+        #emotionInput:focus {
+            border-color: #000;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .emotion-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .emotion-suggestions span {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .emotion-suggestions span:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .secondary-controls {
+            margin-top: 40px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .secondary-controls button {
+            background: #4a5568 !important;
+            font-size: 0.9rem !important;
+            padding: 12px 20px !important;
+            min-width: 120px !important;
+        }
+
+        .emotional-response {
+            background: #000;
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .emotional-response h4 {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #64748b;
+            font-style: italic;
+            padding: 40px 20px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 24px;
+                border-radius: 16px;
+                margin: 10px;
+            }
+            
+            body {
+                padding: 10px;
+            }
+            
+            .controls {
+                gap: 8px;
+                margin-top: 24px;
+            }
+            
+            button {
+                padding: 14px 24px;
+                font-size: 0.875rem;
+                min-width: 120px;
+            }
+            
+            .feeling-button {
+                font-size: 1rem !important;
+                padding: 16px 24px !important;
+                min-width: 240px !important;
+            }
+            
+            .emotional-container {
+                padding: 20px;
+                margin: 20px 0;
+            }
+            
+            .emotion-suggestions {
+                gap: 6px;
+            }
+            
+            .emotion-suggestions span {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+            }
+        }        .header h1 {
+            color: #1a202c;
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.025em;
+        }
+
+        .date-display {
+            color: #718096;
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 32px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .verse-container {
+            background: #f8fafc;
+            padding: 32px;
+            border-radius: 16px;
+            margin: 32px 0;
+            border-left: 4px solid #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .verse-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+        }
+
+        .verse-text {
+            font-size: 1.375rem;
+            line-height: 1.75;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 400;
+            quotes: """ """ "'" "'";
+        }
+
+        .verse-text::before {
+            content: open-quote;
+            color: #cbd5e0;
+            font-size: 2rem;
+            line-height: 0;
+            margin-right: 4px;
+            vertical-align: -0.4em;
+        }
+
+        .verse-text::after {
+            content: close-quote;
+            color: #cbd5e0;
+            font-size: 2rem;
+            line-height: 0;
+            margin-left: 4px;
+            vertical-align: -0.4em;
+        }
+
+        .verse-reference {
+            font-weight: 600;
+            color: #000;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .controls {
+            margin-top: 40px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            min-width: 140px;
+            min-height: 48px; /* Minimum touch target size */
+            touch-action: manipulation; /* Prevent double-tap zoom */
+            -webkit-tap-highlight-color: transparent;
+        }        button:hover {
+            background: #2d3748;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+            background: #1a202c;
+        }
+
+        @media (hover: none) {
+            button:hover {
+                background: #000;
+                transform: none;
+                box-shadow: none;
+            }
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .search-container {
+            margin: 24px 0;
+            padding: 24px;
+            background: #f8fafc;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .search-container input {
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            width: 70%;
+            margin-right: 12px;
+            outline: none;
+            background: white;
+            color: #2d3748;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+                .search-container input:focus {
+            border-color: #000;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-container input::placeholder {
+            color: #a0aec0;
+        }
+
+        .loading {
+            color: #4f46e5;
+            font-size: 1.125rem;
+            padding: 32px;
+            font-weight: 500;
+        }
+
+        .error {
+            color: #e53e3e;
+            font-size: 1rem;
+            padding: 24px;
+            background: #fed7d7;
+            border-radius: 12px;
+            border: 1px solid #feb2b2;
+            font-weight: 500;
+        }
+
+        .already-shown {
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 32px;
+            border-radius: 12px;
+            font-size: 1.125rem;
+            font-weight: 500;
+        }
+
+        .history {
+            margin-top: 24px;
+            font-size: 0.875rem;
+            color: white;
+            text-align: left;
+            background: #000;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .history h3 {
+            color: white;
+            font-size: 1.125rem;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .history-item {
+            margin: 12px 0;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 3px solid white;
+        }
+
+        .history-item strong {
+            color: white;
+        }
+
+        @keyframes fadeIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(8px);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 24px;
+                margin: 16px;
+                border-radius: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.875rem;
+            }
+            
+            .verse-text {
+                font-size: 1.25rem;
+            }
+
+            .search-container input {
+                width: 100%;
+                margin-bottom: 12px;
+                margin-right: 0;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            button {
+                width: 100%;
+                max-width: 240px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📖 Daily Bible Verse</h1>
+            <div class="date-display" id="dateDisplay"></div>
+        </div>
+        
+        <div id="content"></div>
+        
+            <div class="controls">
+                <button onclick="showEmotionalPrompt()" class="feeling-button">How are you feeling today?</button>
+                <button onclick="toggleSearch()" style="margin-top: 20px;">Search Verses</button>
+            </div>
+            
+            <div class="search-container" id="searchContainer" style="display: none;">
+                <input type="text" id="searchInput" placeholder="Enter verse reference (e.g., John 3:16, Psalm 23)" />
+                <button onclick="performSearch()">Search</button>
+            </div>
+            
+            <div id="emotionalSection" style="display: none;">
+                <div class="emotional-container">
+                    <h3>Tell me how you're feeling...</h3>
+                    <input type="text" id="emotionInput" placeholder="e.g., sad, anxious, grateful, lonely, overwhelmed..." />
+                    <button onclick="findEmotionalVerse()">Find My Verse</button>
+                    <div class="emotion-suggestions">
+                        <span onclick="selectEmotion('sad')">Sad</span>
+                        <span onclick="selectEmotion('anxious')">Anxious</span>
+                        <span onclick="selectEmotion('grateful')">Grateful</span>
+                        <span onclick="selectEmotion('lonely')">Lonely</span>
+                        <span onclick="selectEmotion('overwhelmed')">Overwhelmed</span>
+                        <span onclick="selectEmotion('hopeful')">Hopeful</span>
+                        <span onclick="selectEmotion('angry')">Angry</span>
+                        <span onclick="selectEmotion('confused')">Confused</span>
+                    </div>
+                </div>
+                <div id="emotionalResults"></div>
+            </div>
+            
+            <div class="secondary-controls" id="secondaryControls" style="display: none;">
+                <button onclick="shareVerse()">Share Verse</button>
+                <button onclick="showNewVerse()">New Feeling</button>
+            </div>
+            
+            <div class="search-container" id="searchContainer" style="display: none;">
+                <input type="text" id="searchInput" placeholder="Enter verse reference (e.g., John 3:16, Psalm 23)" />
+                <button onclick="performSearch()">Search</button>
+            </div>
+            
+            <button onclick="showHistory()" style="margin-top: 20px;">View History</button>
+        </div>
+        
+        <div class="history" id="history"></div>
+    </div>
+
+    <script>
+        // Bible API configuration
+        const BIBLE_API_BASE = 'https://bible-api.com/';
+        const POPULAR_VERSES = [
+            'john+3:16', 'psalm+23:1', 'philippians+4:13', 'jeremiah+29:11', 
+            'romans+8:28', 'proverbs+3:5-6', 'isaiah+40:31', 'matthew+6:33',
+            'psalm+27:1', 'philippians+4:6', '1+peter+5:7', 'joshua+1:9',
+            'romans+12:2', 'ephesians+2:8-9', 'matthew+11:28', 'psalm+46:1',
+            'isaiah+41:10', 'romans+8:38-39', 'psalm+139:14', 'john+14:6',
+            'galatians+5:22-23', '2+corinthians+5:17', 'psalm+34:18', 'proverbs+18:10',
+            'exodus+14:14', 'john+16:33', 'zephaniah+3:17', 'isaiah+40:29',
+            'proverbs+16:9', 'nahum+1:7', 'proverbs+16:3', '1+corinthians+13:4',
+            'hebrews+11:1', 'romans+5:8', 'psalm+119:105', 'matthew+5:14',
+            'colossians+3:23', 'james+1:17', 'psalm+37:4', 'ecclesiastes+3:1'
+        ];
+
+        // Fallback verses in case API is unavailable
+        const FALLBACK_VERSES = [
+            {text: "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.", reference: "John 3:16"},
+            {text: "Trust in the LORD with all your heart and lean not on your own understanding.", reference: "Proverbs 3:5"},
+            {text: "The LORD is my shepherd, I lack nothing.", reference: "Psalm 23:1"},
+            {text: "I can do all this through him who gives me strength.", reference: "Philippians 4:13"},
+            {text: "For I know the plans I have for you, declares the LORD, plans to prosper you and not to harm you, plans to give you hope and a future.", reference: "Jeremiah 29:11"}
+        ];
+
+        // Function to fetch verse from Bible API
+        async function fetchVerseFromAPI(verseReference = null) {
+            try {
+                let url;
+                if (verseReference) {
+                    url = `${BIBLE_API_BASE}${verseReference}`;
+                } else {
+                    // Get random verse from popular verses
+                    const randomRef = POPULAR_VERSES[Math.floor(Math.random() * POPULAR_VERSES.length)];
+                    url = `${BIBLE_API_BASE}${randomRef}`;
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('API request failed');
+                }
+
+                const data = await response.json();
+                return {
+                    text: data.text.trim().replace(/\s+/g, ' '),
+                    reference: data.reference,
+                    book: data.book_name,
+                    chapter: data.chapter,
+                    verse: data.verse
+                };
+            } catch (error) {
+                console.log('API failed, using fallback verse:', error);
+                return getFallbackVerse();
+            }
+        }
+
+        // Function to get fallback verse when API is unavailable
+        function getFallbackVerse() {
+            const randomIndex = Math.floor(Math.random() * FALLBACK_VERSES.length);
+            return FALLBACK_VERSES[randomIndex];
+        }
+
+        // Function to get a random Bible verse (now uses API)
+        async function get_random_verse() {
+            return await fetchVerseFromAPI();
+        }
+
+        // Function to search for specific verse
+        async function searchVerse(query) {
+            try {
+                // Format query for API (replace spaces with +)
+                const formattedQuery = query.toLowerCase().replace(/\s+/g, '+');
+                return await fetchVerseFromAPI(formattedQuery);
+            } catch (error) {
+                console.log('Search failed:', error);
+                return getFallbackVerse();
+            }
+        }
+
+        // Function to get current date in various formats
+        function get_current_date() {
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0');
+            var yyyy = today.getFullYear();
+            
+            return {
+                key: yyyy + '-' + mm + '-' + dd,
+                display: today.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })
+            };
+        }
+
+        // Function to get stored data from local storage
+        function get_stored_data() {
+            var data = localStorage.getItem('bibleVerseData');
+            return data ? JSON.parse(data) : { lastDate: null, verse: null, viewCount: 0, history: [] };
+        }
+
+        // Function to save data to local storage
+        function save_data(data) {
+            localStorage.setItem('bibleVerseData', JSON.stringify(data));
+        }
+
+        // Function to display verse
+        function displayVerse(verse, isNew = false) {
+            var content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="verse-container">
+                    <div class="verse-text">"${verse.text}"</div>
+                    <div class="verse-reference">— ${verse.reference}</div>
+                </div>
+            `;
+            
+            if (isNew) {
+                content.style.animation = 'none';
+                content.offsetHeight; // Trigger reflow
+                content.style.animation = 'fadeIn 0.8s ease-in';
+            }
+        }
+
+        // Function to show already displayed message
+        function showAlreadyDisplayed() {
+            var content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="already-shown">
+                    <p>🙏 You've already received your daily verse for today.</p>
+                    <p>Take time to meditate on its meaning and let it guide your day.</p>
+                </div>
+            `;
+        }
+
+        // Function to show new verse (button action)
+        async function showNewVerse() {
+            // Show loading message
+            var content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">🙏 Loading a new verse...</div>';
+            
+            try {
+                var verse = await get_random_verse();
+                var currentDate = get_current_date();
+                var storedData = get_stored_data();
+                
+                // Update stored data
+                storedData.lastDate = currentDate.key;
+                storedData.verse = verse;
+                storedData.viewCount++;
+                storedData.history.unshift({
+                    date: currentDate.key,
+                    verse: verse,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Keep only last 30 days in history
+                if (storedData.history.length > 30) {
+                    storedData.history = storedData.history.slice(0, 30);
+                }
+                
+                save_data(storedData);
+                displayVerse(verse, true);
+            } catch (error) {
+                content.innerHTML = '<div class="error">Sorry, could not load a new verse. Please try again.</div>';
+                console.error('Error loading verse:', error);
+            }
+        }
+
+        // Function to share verse
+        function shareVerse() {
+            var storedData = get_stored_data();
+            if (storedData.verse) {
+                var shareText = `"${storedData.verse.text}" - ${storedData.verse.reference}`;
+                
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Daily Bible Verse',
+                        text: shareText,
+                    });
+                } else {
+                    // Fallback to clipboard
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        alert('Verse copied to clipboard!');
+                    });
+                }
+            }
+        }
+
+        // Emotional keywords mapping to verse themes
+        var emotionalKeywords = {
+            'sad': ['comfort', 'hope', 'peace', 'joy', 'strength'],
+            'anxious': ['peace', 'fear not', 'trust', 'worry', 'anxiety'],
+            'lonely': ['presence', 'with you', 'never alone', 'comfort'],
+            'overwhelmed': ['strength', 'burden', 'rest', 'peace', 'help'],
+            'angry': ['patience', 'peace', 'slow to anger', 'forgiveness'],
+            'grateful': ['thankful', 'blessing', 'praise', 'thanksgiving'],
+            'hopeful': ['hope', 'future', 'plans', 'promise'],
+            'confused': ['wisdom', 'understanding', 'guidance', 'path'],
+            'fearful': ['fear not', 'courage', 'strength', 'protection'],
+            'discouraged': ['encourage', 'strength', 'hope', 'persevere'],
+            'worried': ['worry', 'anxiety', 'peace', 'trust', 'care'],
+            'hurt': ['heal', 'comfort', 'pain', 'restoration'],
+            'stressed': ['rest', 'peace', 'burden', 'calm'],
+            'depressed': ['joy', 'hope', 'light', 'comfort', 'healing']
+        };
+
+        // Function to show emotional prompt
+        function showEmotionalPrompt() {
+            var emotionalSection = document.getElementById('emotionalSection');
+            emotionalSection.style.display = 'block';
+            document.getElementById('emotionInput').focus();
+            
+            // Hide the main button
+            document.querySelector('.controls').style.display = 'none';
+        }
+
+        // Function to select emotion from suggestions
+        function selectEmotion(emotion) {
+            document.getElementById('emotionInput').value = emotion;
+            findEmotionalVerse();
+        }
+
+        // Function to find verse based on emotion
+        function findEmotionalVerse() {
+            var emotion = document.getElementById('emotionInput').value.trim().toLowerCase();
+            if (!emotion) return;
+
+            var matchingVerses = findVersesByEmotion(emotion);
+            
+            if (matchingVerses.length > 0) {
+                var selectedVerse = matchingVerses[Math.floor(Math.random() * matchingVerses.length)];
+                displayEmotionalVerse(selectedVerse, emotion);
+            } else {
+                displayNoEmotionalMatch(emotion);
+            }
+        }
+
+        // Extended verse database for emotional matching
+        const EMOTIONAL_VERSES = [
+            // Comfort & Peace
+            {text: "Come to me, all you who are weary and burdened, and I will give you rest.", reference: "Matthew 11:28"},
+            {text: "Peace I leave with you; my peace I give you. I do not give to you as the world gives. Do not let your hearts be troubled and do not be afraid.", reference: "John 14:27"},
+            {text: "The Lord is close to the brokenhearted and saves those who are crushed in spirit.", reference: "Psalm 34:18"},
+            {text: "Cast all your anxiety on him because he cares for you.", reference: "1 Peter 5:7"},
+            {text: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.", reference: "Philippians 4:6"},
+            
+            // Strength & Courage
+            {text: "I can do all this through him who gives me strength.", reference: "Philippians 4:13"},
+            {text: "The Lord your God is with you, the Mighty Warrior who saves. He will take great delight in you; in his love he will no longer rebuke you, but will rejoice over you with singing.", reference: "Zephaniah 3:17"},
+            {text: "Have I not commanded you? Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.", reference: "Joshua 1:9"},
+            {text: "But those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint.", reference: "Isaiah 40:31"},
+            
+            // Hope & Future
+            {text: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future.", reference: "Jeremiah 29:11"},
+            {text: "And we know that in all things God works for the good of those who love him, who have been called according to his purpose.", reference: "Romans 8:28"},
+            {text: "Weeping may stay for the night, but rejoicing comes in the morning.", reference: "Psalm 30:5"},
+            
+            // Love & Comfort
+            {text: "The Lord your God is with you, the Mighty Warrior who saves. He will take great delight in you; in his love he will no longer rebuke you, but will rejoice over you with singing.", reference: "Zephaniah 3:17"},
+            {text: "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.", reference: "John 3:16"},
+            {text: "See what great love the Father has lavished on us, that we should be called children of God! And that is what we are!", reference: "1 John 3:1"},
+            
+            // Trust & Faith
+            {text: "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.", reference: "Proverbs 3:5-6"},
+            {text: "When I am afraid, I put my trust in you.", reference: "Psalm 56:3"},
+            
+            // Gratitude & Joy
+            {text: "Give thanks in all circumstances; for this is God's will for you in Christ Jesus.", reference: "1 Thessalonians 5:18"},
+            {text: "This is the day the Lord has made; we will rejoice and be glad in it.", reference: "Psalm 118:24"},
+            {text: "The joy of the Lord is your strength.", reference: "Nehemiah 8:10"}
+        ];
+
+        // Function to find verses by emotion
+        function findVersesByEmotion(emotion) {
+            var keywords = [];
+            
+            // Get keywords for this emotion
+            if (emotionalKeywords[emotion]) {
+                keywords = emotionalKeywords[emotion];
+            } else {
+                // If not in predefined list, use the emotion itself as keyword
+                keywords = [emotion];
+            }
+
+            var matchingVerses = [];
+            
+            // Search for verses containing these keywords
+            keywords.forEach(function(keyword) {
+                var results = EMOTIONAL_VERSES.filter(verse => 
+                    verse.text.toLowerCase().includes(keyword.toLowerCase())
+                );
+                matchingVerses = matchingVerses.concat(results);
+            });
+
+            // Remove duplicates
+            var uniqueVerses = [];
+            var seen = {};
+            matchingVerses.forEach(function(verse) {
+                if (!seen[verse.reference]) {
+                    seen[verse.reference] = true;
+                    uniqueVerses.push(verse);
+                }
+            });
+
+            return uniqueVerses;
+        }
+
+        // Function to display emotional verse
+        function displayEmotionalVerse(verse, emotion) {
+            var emotionalResponse = getEmotionalResponse(emotion);
+            
+            var html = '<div class="emotional-response">';
+            html += '<h4>' + emotionalResponse + '</h4>';
+            html += '</div>';
+            
+            // Display the verse
+            displayVerse(verse);
+            
+            // Add the emotional response above the verse
+            var verseContainer = document.querySelector('.verse-container');
+            verseContainer.insertAdjacentHTML('beforebegin', html);
+            
+            // Show secondary controls and hide emotional section
+            document.getElementById('secondaryControls').style.display = 'flex';
+            document.getElementById('emotionalSection').style.display = 'none';
+        }
+
+        // Function to get personalized response based on emotion
+        function getEmotionalResponse(emotion) {
+            var responses = {
+                'sad': "I understand you're feeling sad. Here's a verse to bring you comfort:",
+                'anxious': "When anxiety weighs heavy, remember this truth:",
+                'lonely': "You are never truly alone. God is always with you:",
+                'overwhelmed': "When life feels too much to bear, find rest in this promise:",
+                'angry': "In moments of anger, let this verse bring you peace:",
+                'grateful': "Your grateful heart is beautiful. Here's a verse that celebrates thankfulness:",
+                'hopeful': "Your hope is well-placed. Here's encouragement for your journey:",
+                'confused': "When you need clarity and direction, remember this:",
+                'fearful': "Perfect love casts out fear. Here's your reminder:",
+                'discouraged': "Don't give up. Here's strength for your weary soul:",
+                'worried': "Cast your worries on Him, for He cares for you:",
+                'hurt': "Healing takes time. Here's comfort for your pain:",
+                'stressed': "Find peace in the midst of stress with this verse:",
+                'depressed': "Even in darkness, there is light. Hold onto this hope:"
+            };
+            
+            return responses[emotion.toLowerCase()] || "Here's a verse chosen especially for how you're feeling:";
+        }
+
+        // Function to display no emotional match
+        function displayNoEmotionalMatch(emotion) {
+            var html = '<div class="no-results">';
+            html += 'I hear that you\'re feeling "' + emotion + '". ';
+            html += 'While I don\'t have a specific verse for that exact feeling, ';
+            html += 'here\'s one that might still speak to your heart.';
+            html += '</div>';
+            
+            document.getElementById('emotionalResults').innerHTML = html;
+            
+            // Show a random comforting verse
+            var comfortingVerses = EMOTIONAL_VERSES.filter(verse => 
+                verse.text.toLowerCase().includes('comfort') ||
+                verse.text.toLowerCase().includes('peace') ||
+                verse.text.toLowerCase().includes('love') ||
+                verse.text.toLowerCase().includes('hope')
+            );
+            
+            if (comfortingVerses.length > 0) {
+                var verse = comfortingVerses[Math.floor(Math.random() * comfortingVerses.length)];
+                displayVerse(verse);
+                document.getElementById('secondaryControls').style.display = 'flex';
+                document.getElementById('emotionalSection').style.display = 'none';
+            }
+        }
+
+        // Function to reset for new feeling
+        function showNewVerse() {
+            // Reset everything
+            document.querySelector('.controls').style.display = 'flex';
+            document.getElementById('emotionalSection').style.display = 'none';
+            document.getElementById('secondaryControls').style.display = 'none';
+            document.getElementById('emotionInput').value = '';
+            
+            // Remove emotional response if present
+            var emotionalResponse = document.querySelector('.emotional-response');
+            if (emotionalResponse) {
+                emotionalResponse.remove();
+            }
+            
+            // Show today's verse
+            main();
+        }
+
+        // Add Enter key functionality to emotion input
+        document.addEventListener('DOMContentLoaded', function() {
+            var emotionInput = document.getElementById('emotionInput');
+            if (emotionInput) {
+                emotionInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        findEmotionalVerse();
+                    }
+                });
+            }
+        });
+
+        // Function to toggle search container
+        function toggleSearch() {
+            var searchContainer = document.getElementById('searchContainer');
+            if (searchContainer.style.display === 'none') {
+                searchContainer.style.display = 'block';
+                document.getElementById('searchInput').focus();
+            } else {
+                searchContainer.style.display = 'none';
+            }
+        }
+
+        // Function to show history
+        function showHistory() {
+            var storedData = get_stored_data();
+            var historyDiv = document.getElementById('history');
+            
+            if (historyDiv.style.display === 'block') {
+                historyDiv.style.display = 'none';
+                return;
+            }
+            
+            if (storedData.history.length === 0) {
+                historyDiv.innerHTML = `
+                    <h3>Verse History</h3>
+                    <p>No verses viewed yet. Start by sharing how you're feeling!</p>
+                `;
+            } else {
+                var historyHtml = '<h3>Your Recent Verses</h3>';
+                storedData.history.slice(0, 10).forEach(entry => {
+                    var date = new Date(entry.timestamp).toLocaleDateString();
+                    var time = new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    var searchedLabel = entry.searched ? ' (searched)' : '';
+                    historyHtml += `
+                        <div class="history-item">
+                            <strong>${entry.verse.reference}${searchedLabel}</strong><br>
+                            <em>${date} at ${time}</em><br>
+                            "${entry.verse.text}"
+                        </div>
+                    `;
+                });
+                historyDiv.innerHTML = historyHtml;
+            }
+            historyDiv.style.display = 'block';
+        }
+
+        // Function to perform search
+        async function performSearch() {
+            var query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('Please enter a verse reference');
+                return;
+            }
+
+            var content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">🔍 Searching for verse...</div>';
+
+            try {
+                var verse = await searchVerse(query);
+                var currentDate = get_current_date();
+                var storedData = get_stored_data();
+                
+                // Update stored data (but don't change daily verse)
+                storedData.viewCount++;
+                storedData.history.unshift({
+                    date: currentDate.key,
+                    verse: verse,
+                    timestamp: new Date().toISOString(),
+                    searched: true
+                });
+                
+                // Keep only last 30 days in history
+                if (storedData.history.length > 30) {
+                    storedData.history = storedData.history.slice(0, 30);
+                }
+                
+                save_data(storedData);
+                displayVerse(verse, true);
+                
+                // Clear search input
+                document.getElementById('searchInput').value = '';
+                toggleSearch();
+                
+            } catch (error) {
+                content.innerHTML = '<div class="error">Could not find that verse. Please check the reference and try again.</div>';
+                console.error('Search error:', error);
+            }
+        }
+
+        // Add enter key support for search
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+            
+            // Initialize the app
+            main();
+        });
+        // Main function
+        async function main() {
+            var currentDate = get_current_date();
+            var storedData = get_stored_data();
+
+            // Display current date
+            document.getElementById('dateDisplay').innerHTML = currentDate.display;
+
+            // Check if verse is already displayed today
+            if (currentDate.key !== storedData.lastDate) {
+                // Show loading message
+                document.getElementById('content').innerHTML = '<div class="loading">🙏 Loading today\'s verse...</div>';
+                
+                try {
+                    var verse = await get_random_verse();
+                    
+                    // Update stored data
+                    storedData.lastDate = currentDate.key;
+                    storedData.verse = verse;
+                    storedData.viewCount++;
+                    storedData.history.unshift({
+                        date: currentDate.key,
+                        verse: verse,
+                        timestamp: new Date().toISOString()
+                    });
+                    
+                    // Keep only last 30 days in history
+                    if (storedData.history.length > 30) {
+                        storedData.history = storedData.history.slice(0, 30);
+                    }
+                    
+                    save_data(storedData);
+                    displayVerse(verse);
+                } catch (error) {
+                    document.getElementById('content').innerHTML = '<div class="error">Could not load verse. Please refresh the page.</div>';
+                    console.error('Error in main:', error);
+                }
+            } else {
+                // Show today's verse if available, otherwise show already displayed message
+                if (storedData.verse) {
+                    displayVerse(storedData.verse);
+                } else {
+                    showAlreadyDisplayed();
+                }
+            }
+        }
+
+        // PWA Installation
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallButton();
+        });
+        
+        function showInstallButton() {
+            const installBtn = document.createElement('button');
+            installBtn.textContent = 'Install App';
+            installBtn.onclick = installApp;
+            installBtn.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4f46e5;
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-size: 0.875rem;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            `;
+            document.body.appendChild(installBtn);
+        }
+        
+        async function installApp() {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('PWA installed');
+            }
+            
+            deferredPrompt = null;
+            document.querySelector('button[onclick="installApp()"]')?.remove();
+        }
+        
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+
+        // Run the application when page loads
+        document.addEventListener('DOMContentLoaded', main);
+    </script>
+</body>
+</html>

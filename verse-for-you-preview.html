@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verse for You — App Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-root: #F8F6FB;
+    --bg-default: #FFFFFF;
+    --bg-secondary: #F2EFF7;
+    --bg-tertiary: #E8E4F0;
+    --text: #2A2630;
+    --text-secondary: #6B6478;
+    --text-tertiary: #A09AAC;
+    --accent: #7C6E8A;
+    --accent-light: #C4BAD4;
+    --border: #E6E2EE;
+    --success: #7A9B76;
+    --error: #C17B7B;
+    --tab-bg: rgba(248,246,251,0.85);
+  }
+
+  body {
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    padding: 20px;
+  }
+
+  .device-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .device-label {
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .phone-frame {
+    width: 390px;
+    height: 844px;
+    background: var(--bg-root);
+    border-radius: 50px;
+    overflow: hidden;
+    box-shadow: 0 0 0 10px #1a1a2e, 0 0 0 12px #333, 0 30px 80px rgba(0,0,0,0.6);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 54px;
+    padding: 16px 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    background: var(--bg-root);
+  }
+  .status-time { font-size: 15px; font-weight: 600; color: var(--text); }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+  .status-icons span { font-size: 13px; color: var(--text); }
+
+  /* Navigation Header */
+  .nav-header {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    background: var(--bg-root);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .nav-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .nav-right {
+    position: absolute;
+    right: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--bg-secondary);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Screen content */
+  .screen-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px 20px 100px;
+    background: var(--bg-root);
+    scrollbar-width: none;
+  }
+  .screen-content::-webkit-scrollbar { display: none; }
+
+  /* Screens */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Home Screen */
+  .date-text {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+
+  /* Verse of the Day Card */
+  .votd-card {
+    background: linear-gradient(135deg, #7C6E8A 0%, #9B8DAB 100%);
+    border-radius: 20px;
+    padding: 22px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .votd-card::before {
+    content: '✦';
+    position: absolute;
+    top: -10px;
+    right: 10px;
+    font-size: 60px;
+    color: rgba(255,255,255,0.07);
+  }
+  .votd-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.65);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .votd-verse {
+    font-size: 15px;
+    line-height: 24px;
+    color: #fff;
+    font-style: italic;
+    margin-bottom: 12px;
+  }
+  .votd-ref {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.75);
+    letter-spacing: 0.5px;
+  }
+
+  /* Section headings */
+  .section-h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .section-sub {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    text-align: center;
+    margin-bottom: 24px;
+    line-height: 20px;
+  }
+
+  /* Input */
+  .input-wrap {
+    background: var(--bg-default);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+  .input-wrap:focus-within {
+    border-color: var(--accent);
+  }
+  .emotion-input {
+    width: 100%;
+    height: 52px;
+    background: transparent;
+    border: none;
+    outline: none;
+    text-align: center;
+    font-size: 17px;
+    color: var(--text);
+    padding: 0 20px;
+    font-family: inherit;
+  }
+  .emotion-input::placeholder { color: var(--text-tertiary); }
+
+  /* Pills */
+  .pills-wrap {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 16px;
+    scrollbar-width: none;
+  }
+  .pills-wrap::-webkit-scrollbar { display: none; }
+  .pill {
+    padding: 8px 16px;
+    border-radius: 9999px;
+    background: var(--bg-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    border: none;
+  }
+  .pill:hover, .pill.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* Translation selector */
+  .translation-sel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    cursor: pointer;
+  }
+  .translation-sel-left { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--text-secondary); }
+
+  /* Find Button */
+  .find-btn {
+    width: 100%;
+    height: 52px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-bottom: 24px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+  }
+  .find-btn:disabled { opacity: 0.5; }
+  .find-btn:active:not(:disabled) { transform: scale(0.97); }
+  .find-btn.loading { opacity: 0.8; }
+
+  /* Spinner */
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Verse cards */
+  .results-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .verse-card {
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--accent-light);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.15s;
+    animation: fadeUp 0.4s ease both;
+  }
+  .verse-card:active { transform: scale(0.98); }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .verse-card-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 6px;
+  }
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-default);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.15s;
+  }
+  .action-btn:active { transform: scale(0.9); }
+  .verse-text {
+    font-size: 16px;
+    line-height: 26px;
+    color: var(--text);
+    font-style: italic;
+    margin-bottom: 14px;
+    margin-right: 84px;
+    margin-top: 6px;
+  }
+  .verse-ref {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .verse-translation {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    font-weight: 500;
+  }
+
+  /* Prayer button */
+  .prayer-btn {
+    width: 100%;
+    border: 1px solid var(--accent-light);
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .prayer-btn:active { transform: scale(0.98); }
+  .prayer-btn-text { font-size: 15px; font-weight: 600; color: var(--accent); flex: 1; text-align: left; }
+  .prayer-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-light);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.35s ease both;
+    display: none;
+  }
+  .prayer-card.visible { display: block; }
+  .prayer-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .prayer-label { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--accent); text-transform: uppercase; }
+  .prayer-text { font-size: 16px; line-height: 26px; color: var(--text); font-style: italic; }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 32px;
+    gap: 12px;
+  }
+  .empty-icon { font-size: 64px; opacity: 0.25; }
+  .empty-text { font-size: 16px; color: var(--text-tertiary); font-style: italic; }
+  .empty-sub { font-size: 14px; color: var(--text-tertiary); text-align: center; line-height: 20px; opacity: 0.7; }
+
+  /* Journal Screen */
+  .journal-item {
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--accent-light);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 12px;
+    animation: fadeUp 0.35s ease both;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s;
+  }
+  .journal-item:active { transform: scale(0.98); }
+  .journal-emotion-tag {
+    display: inline-block;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .journal-verse { font-size: 15px; line-height: 24px; color: var(--text); font-style: italic; margin-bottom: 10px; }
+  .journal-ref { font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
+  .journal-date { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
+  .journal-delete {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-default);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--error);
+  }
+  .journal-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 40px;
+  }
+  .journal-empty-icon { font-size: 56px; opacity: 0.2; }
+  .journal-empty-text { font-size: 16px; color: var(--text-tertiary); font-style: italic; }
+
+  /* Search Screen */
+  .search-input-wrap {
+    background: var(--bg-default);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+    transition: border-color 0.2s;
+  }
+  .search-input-wrap:focus-within { border-color: var(--accent); }
+  .search-icon { font-size: 18px; color: var(--text-tertiary); }
+  .search-input {
+    flex: 1;
+    height: 52px;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 17px;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .search-input::placeholder { color: var(--text-tertiary); }
+
+  /* Settings Screen */
+  .settings-section-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 0 4px;
+    margin-bottom: 8px;
+    margin-top: 24px;
+  }
+  .settings-group {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    gap: 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row:active { background: var(--bg-tertiary); }
+  .settings-row-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .settings-row-content { flex: 1; }
+  .settings-row-title { font-size: 16px; font-weight: 500; color: var(--text); }
+  .settings-row-sub { font-size: 13px; color: var(--text-tertiary); margin-top: 2px; }
+  .settings-row-right { font-size: 20px; color: var(--text-tertiary); }
+
+  /* Toggle */
+  .toggle-wrap {
+    width: 50px;
+    height: 28px;
+    background: var(--border);
+    border-radius: 14px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-wrap.on { background: var(--accent); }
+  .toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .toggle-wrap.on .toggle-knob { left: 25px; }
+
+  /* App version */
+  .app-version {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-top: 32px;
+    margin-bottom: 8px;
+  }
+  .app-heart { color: var(--error); }
+
+  /* Donate banner */
+  .donate-banner {
+    background: linear-gradient(135deg, #7C6E8A 0%, #9B8DAB 100%);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .donate-banner::after {
+    content: '✦';
+    position: absolute;
+    bottom: -15px;
+    right: 5px;
+    font-size: 70px;
+    color: rgba(255,255,255,0.06);
+  }
+  .donate-title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .donate-sub { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 14px; }
+  .donate-btn-inner {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    padding: 10px 20px;
+    display: inline-block;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Tab Bar */
+  .tab-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 86px;
+    display: flex;
+    background: var(--tab-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    padding: 8px 0 26px;
+    z-index: 100;
+  }
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab-item:active { transform: scale(0.9); }
+  .tab-icon { font-size: 22px; color: var(--text-tertiary); line-height: 1; }
+  .tab-icon.active-icon { color: var(--accent); }
+  .tab-label { font-size: 10px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.3px; }
+  .tab-label.active-label { color: var(--accent); }
+
+  /* Modal overlay */
+  .modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: flex-end;
+    z-index: 200;
+    border-radius: 50px;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal-sheet {
+    width: 100%;
+    background: var(--bg-default);
+    border-radius: 24px 24px 0 0;
+    padding: 12px 20px 40px;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .modal-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+  .modal-title { font-size: 17px; font-weight: 700; color: var(--text); text-align: center; margin-bottom: 16px; }
+  .translation-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.1s;
+  }
+  .translation-option:hover, .translation-option.selected { background: var(--bg-secondary); }
+  .translation-option-title { font-size: 16px; font-weight: 600; color: var(--text); }
+  .translation-option-sub { font-size: 13px; color: var(--text-tertiary); margin-top: 2px; }
+  .translation-check { font-size: 18px; color: var(--accent); }
+
+  /* Verse Detail Modal */
+  .detail-modal {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-root);
+    z-index: 300;
+    display: none;
+    flex-direction: column;
+    border-radius: 50px;
+    animation: slideInRight 0.3s ease;
+  }
+  .detail-modal.visible { display: flex; }
+  @keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  .detail-nav {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    background: var(--bg-root);
+  }
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .detail-content {
+    flex: 1;
+    padding: 32px 28px;
+    overflow-y: auto;
+  }
+  .detail-ref {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .detail-verse {
+    font-size: 22px;
+    line-height: 36px;
+    color: var(--text);
+    font-style: italic;
+    font-weight: 400;
+    margin-bottom: 24px;
+  }
+  .detail-translation {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    margin-bottom: 32px;
+  }
+  .detail-reflection-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .detail-reflection {
+    font-size: 15px;
+    line-height: 25px;
+    color: var(--text-secondary);
+  }
+  .detail-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+  }
+  .detail-action-btn {
+    flex: 1;
+    height: 48px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .detail-action-btn.save { color: var(--accent); border-color: var(--accent-light); }
+  .detail-action-btn:active { transform: scale(0.97); }
+
+  /* Dark mode toggle */
+  .dark-toggle {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    font-size: 13px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .dark-toggle:hover { background: rgba(255,255,255,0.15); }
+
+  /* Dark mode */
+  .dark-mode {
+    --bg-root: #18161D;
+    --bg-default: #232029;
+    --bg-secondary: #2D2A35;
+    --bg-tertiary: #383442;
+    --text: #F0EEF5;
+    --text-secondary: #B0A8BE;
+    --text-tertiary: #857E94;
+    --accent: #C4BAD4;
+    --accent-light: #7C6E8A;
+    --border: #383442;
+    --tab-bg: rgba(24,22,29,0.85);
+  }
+
+  /* Responsive */
+  @media (max-width: 420px) {
+    .phone-frame { width: 100vw; max-width: 390px; height: 90vh; border-radius: 30px; }
+    body { padding: 10px; align-items: flex-start; padding-top: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="device-wrapper">
+  <div class="phone-frame" id="app">
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span class="status-time" id="clock">9:41</span>
+      <div class="status-icons">
+        <span>▪▪▪▪</span>
+        <span>WiFi</span>
+        <span>🔋</span>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="nav-header" id="nav-header">
+      <span class="nav-title" id="nav-title">Verse for You</span>
+      <div class="nav-right" id="translation-trigger" onclick="openTranslationModal()">
+        📖 <span id="current-translation">NIV</span> ▾
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="screen-content" id="main-content">
+
+      <!-- HOME SCREEN -->
+      <div class="screen active" id="screen-home">
+        <div class="date-text" id="today-date">Tuesday, April 7</div>
+
+        <!-- Verse of the Day -->
+        <div class="votd-card" id="votd-card">
+          <div class="votd-label">✦ Verse of the Day · <span id="votd-theme">Hope</span></div>
+          <div class="votd-verse" id="votd-verse">"Those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint."</div>
+          <div class="votd-ref" id="votd-ref">Isaiah 40:31 · NIV</div>
+        </div>
+
+        <div class="section-h2">How are you feeling?</div>
+        <div class="section-sub">Share what's on your heart — find peace in Scripture</div>
+
+        <div class="input-wrap">
+          <input class="emotion-input" id="emotion-input" placeholder="anxious, grateful, lost..." autocomplete="off" />
+        </div>
+
+        <!-- Emotion Pills -->
+        <div class="pills-wrap" id="pills-wrap">
+          <button class="pill" onclick="selectEmotion('anxious')">anxious</button>
+          <button class="pill" onclick="selectEmotion('overwhelmed')">overwhelmed</button>
+          <button class="pill" onclick="selectEmotion('stressed')">stressed</button>
+          <button class="pill" onclick="selectEmotion('lonely')">lonely</button>
+          <button class="pill" onclick="selectEmotion('hopeful')">hopeful</button>
+          <button class="pill" onclick="selectEmotion('grateful')">grateful</button>
+          <button class="pill" onclick="selectEmotion('lost')">lost</button>
+          <button class="pill" onclick="selectEmotion('afraid')">afraid</button>
+          <button class="pill" onclick="selectEmotion('burned out')">burned out</button>
+          <button class="pill" onclick="selectEmotion('sad')">sad</button>
+          <button class="pill" onclick="selectEmotion('joyful')">joyful</button>
+          <button class="pill" onclick="selectEmotion('peaceful')">peaceful</button>
+          <button class="pill" onclick="selectEmotion('healing')">healing</button>
+          <button class="pill" onclick="selectEmotion('doubting')">doubting</button>
+          <button class="pill" onclick="selectEmotion('comparison trap')">comparison trap</button>
+          <button class="pill" onclick="selectEmotion('imposter syndrome')">imposter syndrome</button>
+          <button class="pill" onclick="selectEmotion('financial stress')">financial stress</button>
+          <button class="pill" onclick="selectEmotion('exhausted')">exhausted</button>
+          <button class="pill" onclick="selectEmotion('seeking')">seeking</button>
+          <button class="pill" onclick="selectEmotion('forgiven')">forgiven</button>
+        </div>
+
+        <!-- Translation Selector -->
+        <div class="translation-sel" onclick="openTranslationModal()">
+          <div class="translation-sel-left">📖 <span id="translation-label">NIV</span></div>
+          <span style="color:var(--text-tertiary)">▾</span>
+        </div>
+
+        <!-- Find Button -->
+        <button class="find-btn" id="find-btn" onclick="findVerses()">
+          <span id="btn-label">Find My Verses</span>
+          <div class="spinner" id="spinner"></div>
+        </button>
+
+        <!-- Results -->
+        <div id="results-section" style="display:none">
+          <div class="results-label" id="results-label">5 verses found — tap to read, ♡ to save</div>
+          <div id="verse-cards"></div>
+
+          <!-- Prayer Button -->
+          <button class="prayer-btn" onclick="togglePrayer()">
+            <span>🪶</span>
+            <span class="prayer-btn-text" id="prayer-btn-text">Pray About This</span>
+            <span id="prayer-chevron" style="color:var(--text-tertiary)">▾</span>
+          </button>
+          <div class="prayer-card" id="prayer-card">
+            <div class="prayer-card-header">
+              <span class="prayer-label">A Prayer for You</span>
+              <button class="action-btn" onclick="sharePrayer()" style="position:static;width:30px;height:30px;font-size:14px">↗</button>
+            </div>
+            <div class="prayer-text" id="prayer-text"></div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📖</div>
+          <div class="empty-text">Share what's on your heart</div>
+          <div class="empty-sub">Scripture meets you exactly where you are</div>
+        </div>
+      </div>
+
+      <!-- SEARCH SCREEN -->
+      <div class="screen" id="screen-search">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="search-input" placeholder="Search by topic, keyword, or theme..." />
+        </div>
+        <div class="pills-wrap">
+          <button class="pill" onclick="setSearchTopic('love')">love</button>
+          <button class="pill" onclick="setSearchTopic('peace')">peace</button>
+          <button class="pill" onclick="setSearchTopic('faith')">faith</button>
+          <button class="pill" onclick="setSearchTopic('hope')">hope</button>
+          <button class="pill" onclick="setSearchTopic('grace')">grace</button>
+          <button class="pill" onclick="setSearchTopic('strength')">strength</button>
+          <button class="pill" onclick="setSearchTopic('light')">light</button>
+          <button class="pill" onclick="setSearchTopic('prayer')">prayer</button>
+        </div>
+
+        <!-- Translation Selector for Search -->
+        <div class="translation-sel" onclick="openTranslationModal()" style="margin-bottom:24px">
+          <div class="translation-sel-left">📖 <span class="search-translation-label">NIV</span></div>
+          <span style="color:var(--text-tertiary)">▾</span>
+        </div>
+
+        <button class="find-btn" id="search-btn" onclick="doSearch()">Search Scripture</button>
+
+        <div id="search-results" style="display:none">
+          <div class="results-label" id="search-results-label"></div>
+          <div id="search-verse-cards"></div>
+        </div>
+
+        <div class="empty-state" id="search-empty">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-text">Search any topic or theme</div>
+          <div class="empty-sub">Find verses on love, strength, grace, and more</div>
+        </div>
+      </div>
+
+      <!-- JOURNAL SCREEN -->
+      <div class="screen" id="screen-journal">
+        <div id="journal-list"></div>
+        <div class="journal-empty" id="journal-empty" style="display:none">
+          <div class="journal-empty-icon">🔖</div>
+          <div class="journal-empty-text">Your saved verses will appear here</div>
+        </div>
+      </div>
+
+      <!-- SETTINGS SCREEN -->
+      <div class="screen" id="screen-settings">
+        <!-- Donate Banner -->
+        <div class="donate-banner" onclick="alert('Donation flow with Stripe is integrated! ✅')">
+          <div class="donate-title">Keep the Mission Going 🙏</div>
+          <div class="donate-sub">Help keep Verse for You free for everyone. Your support matters.</div>
+          <div class="donate-btn-inner">Give a Gift →</div>
+        </div>
+
+        <div class="settings-section-label">Preferences</div>
+        <div class="settings-group">
+          <div class="settings-row" onclick="toggleDark()">
+            <div class="settings-row-icon">🌙</div>
+            <div class="settings-row-content">
+              <div class="settings-row-title">Dark Mode</div>
+              <div class="settings-row-sub">Easier on the eyes at night</div>
+            </div>
+            <div class="toggle-wrap" id="dark-toggle" onclick="event.stopPropagation(); toggleDark()">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <div class="settings-row" onclick="reminderToggle()">
+            <div class="settings-row-icon">🔔</div>
+            <div class="settings-row-content">
+              <div class="settings-row-title">Daily Reminder</div>
+              <div class="settings-row-sub">Coming in next update</div>
+            </div>
+            <div class="toggle-wrap" id="reminder-toggle">
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section-label">Community</div>
+        <div class="settings-group">
+          <div class="settings-row" onclick="alert('Opens App Store review page ✅')">
+            <div class="settings-row-icon">⭐</div>
+            <div class="settings-row-content">
+              <div class="settings-row-title">Rate the App</div>
+              <div class="settings-row-sub">Your rating helps others discover us</div>
+            </div>
+            <span class="settings-row-right">›</span>
+          </div>
+          <div class="settings-row" onclick="alert('Native share sheet opens ✅')">
+            <div class="settings-row-icon">↗</div>
+            <div class="settings-row-content">
+              <div class="settings-row-title">Share with a Friend</div>
+              <div class="settings-row-sub">Spread the word</div>
+            </div>
+            <span class="settings-row-right">›</span>
+          </div>
+        </div>
+
+        <div class="settings-section-label">Support</div>
+        <div class="settings-group">
+          <div class="settings-row" onclick="alert('Opens: hello@verseforyou.app ✅')">
+            <div class="settings-row-icon">✉️</div>
+            <div class="settings-row-content">
+              <div class="settings-row-title">Send Feedback</div>
+              <div class="settings-row-sub">We read every message</div>
+            </div>
+            <span class="settings-row-right">›</span>
+          </div>
+          <div class="settings-row" onclick="alert('Opens: verseforyou.app/privacy ✅')">
+            <div class="settings-row-icon">🔒</div>
+            <div class="settings-row-content">
+              <div class="settings-row-title">Privacy Policy</div>
+            </div>
+            <span class="settings-row-right">›</span>
+          </div>
+        </div>
+
+        <div class="app-version">Made with <span class="app-heart">♥</span> for the journey · v1.3.0</div>
+      </div>
+
+    </div><!-- end screen-content -->
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab-item" onclick="switchTab('home')">
+        <div class="tab-icon active-icon" id="tab-icon-home">♡</div>
+        <div class="tab-label active-label" id="tab-label-home">Comfort</div>
+      </div>
+      <div class="tab-item" onclick="switchTab('search')">
+        <div class="tab-icon" id="tab-icon-search">⌕</div>
+        <div class="tab-label" id="tab-label-search">Search</div>
+      </div>
+      <div class="tab-item" onclick="switchTab('journal')">
+        <div class="tab-icon" id="tab-icon-journal">🔖</div>
+        <div class="tab-label" id="tab-label-journal">Journal</div>
+      </div>
+      <div class="tab-item" onclick="switchTab('settings')">
+        <div class="tab-icon" id="tab-icon-settings">⚙</div>
+        <div class="tab-label" id="tab-label-settings">Settings</div>
+      </div>
+    </div>
+
+    <!-- Translation Modal -->
+    <div class="modal-overlay" id="translation-modal" onclick="closeTranslationModal(event)">
+      <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Bible Translation</div>
+        <div id="translation-options"></div>
+      </div>
+    </div>
+
+    <!-- Verse Detail Modal -->
+    <div class="detail-modal" id="verse-detail">
+      <div class="nav-header detail-nav">
+        <button class="back-btn" onclick="closeDetail()">‹ Back</button>
+      </div>
+      <div class="detail-content">
+        <div class="detail-ref" id="detail-ref"></div>
+        <div class="detail-verse" id="detail-verse"></div>
+        <div class="detail-translation" id="detail-translation"></div>
+        <div class="detail-reflection-label">Reflection</div>
+        <div class="detail-reflection" id="detail-reflection"></div>
+        <div class="detail-actions">
+          <button class="detail-action-btn save" onclick="saveCurrentVerse()">♡ Save to Journal</button>
+          <button class="detail-action-btn" onclick="shareCurrentVerse()">↗ Share</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end phone-frame -->
+</div><!-- end device-wrapper -->
+
+<button class="dark-toggle" onclick="toggleDark()" id="outer-dark-btn">🌙 Toggle Dark Mode</button>
+
+<script>
+  // ---- DATA ----
+  const TRANSLATIONS = {
+    NIV: "New International Version",
+    ESV: "English Standard Version",
+    NLT: "New Living Translation",
+    KJV: "King James Version",
+    NKJV: "New King James Version",
+    CSB: "Christian Standard Bible",
+    MSG: "The Message"
+  };
+
+  const VERSE_LIBRARY = {
+    anxious: [
+      { v: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.", r: "Philippians 4:6" },
+      { v: "Cast all your anxiety on him because he cares for you.", r: "1 Peter 5:7" },
+      { v: "Peace I leave with you; my peace I give you. I do not give to you as the world gives. Do not let your hearts be troubled and do not be afraid.", r: "John 14:27" },
+      { v: "When anxiety was great within me, your consolation brought me joy.", r: "Psalm 94:19" },
+      { v: "The Lord is my shepherd, I lack nothing.", r: "Psalm 23:1" },
+    ],
+    overwhelmed: [
+      { v: "Come to me, all you who are weary and burdened, and I will give you rest.", r: "Matthew 11:28" },
+      { v: "He gives strength to the weary and increases the power of the weak.", r: "Isaiah 40:29" },
+      { v: "I can do all this through him who gives me strength.", r: "Philippians 4:13" },
+      { v: "Cast your cares on the Lord and he will sustain you.", r: "Psalm 55:22" },
+      { v: "My grace is sufficient for you, for my power is made perfect in weakness.", r: "2 Corinthians 12:9" },
+    ],
+    afraid: [
+      { v: "For God has not given us a spirit of fear, but of power and of love and of a sound mind.", r: "2 Timothy 1:7" },
+      { v: "The Lord is my light and my salvation — whom shall I fear? The Lord is the stronghold of my life — of whom shall I be afraid?", r: "Psalm 27:1" },
+      { v: "So do not fear, for I am with you; do not be dismayed, for I am your God.", r: "Isaiah 41:10" },
+      { v: "When I am afraid, I put my trust in you.", r: "Psalm 56:3" },
+      { v: "Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.", r: "Joshua 1:9" },
+    ],
+    grateful: [
+      { v: "Give thanks in all circumstances; for this is God's will for you in Christ Jesus.", r: "1 Thessalonians 5:18" },
+      { v: "Enter his gates with thanksgiving and his courts with praise; give thanks to him and praise his name.", r: "Psalm 100:4" },
+      { v: "Every good and perfect gift is from above, coming down from the Father of the heavenly lights.", r: "James 1:17" },
+      { v: "The Lord has done great things for us, and we are filled with joy.", r: "Psalm 126:3" },
+      { v: "Let the peace of Christ rule in your hearts... and be thankful.", r: "Colossians 3:15" },
+    ],
+    hopeful: [
+      { v: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future.", r: "Jeremiah 29:11" },
+      { v: "May the God of hope fill you with all joy and peace as you trust in him.", r: "Romans 15:13" },
+      { v: "Those who hope in the Lord will renew their strength.", r: "Isaiah 40:31" },
+      { v: "Weeping may stay for the night, but rejoicing comes in the morning.", r: "Psalm 30:5" },
+      { v: "Hope deferred makes the heart sick, but a longing fulfilled is a tree of life.", r: "Proverbs 13:12" },
+    ],
+    sad: [
+      { v: "The Lord is close to the brokenhearted and saves those who are crushed in spirit.", r: "Psalm 34:18" },
+      { v: "He heals the brokenhearted and binds up their wounds.", r: "Psalm 147:3" },
+      { v: "Jesus wept.", r: "John 11:35" },
+      { v: "Blessed are those who mourn, for they will be comforted.", r: "Matthew 5:4" },
+      { v: "Why, my soul, are you downcast? Put your hope in God.", r: "Psalm 42:5" },
+    ],
+    lonely: [
+      { v: "Be strong and courageous. Do not be afraid or terrified because of them, for the Lord your God goes with you; he will never leave you nor forsake you.", r: "Deuteronomy 31:6" },
+      { v: "And surely I am with you always, to the very end of the age.", r: "Matthew 28:20" },
+      { v: "God sets the lonely in families.", r: "Psalm 68:6" },
+      { v: "The Lord is near to all who call on him.", r: "Psalm 145:18" },
+      { v: "Turn to me and be gracious to me, for I am lonely and afflicted.", r: "Psalm 25:16" },
+    ],
+    joyful: [
+      { v: "Rejoice in the Lord always. I will say it again: Rejoice!", r: "Philippians 4:4" },
+      { v: "This is the day that the Lord has made; let us rejoice and be glad in it.", r: "Psalm 118:24" },
+      { v: "The joy of the Lord is your strength.", r: "Nehemiah 8:10" },
+      { v: "Shout for joy to the Lord, all the earth!", r: "Psalm 100:1" },
+      { v: "You have made known to me the path of life; you will fill me with joy in your presence.", r: "Psalm 16:11" },
+    ],
+    peaceful: [
+      { v: "You will keep in perfect peace those whose minds are steadfast, because they trust in you.", r: "Isaiah 26:3" },
+      { v: "The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you.", r: "Numbers 6:24-25" },
+      { v: "Be still, and know that I am God.", r: "Psalm 46:10" },
+      { v: "And the peace of God, which transcends all understanding, will guard your hearts and minds.", r: "Philippians 4:7" },
+      { v: "Blessed are the peacemakers, for they will be called children of God.", r: "Matthew 5:9" },
+    ],
+    lost: [
+      { v: "Trust in the Lord with all your heart and lean not on your own understanding.", r: "Proverbs 3:5-6" },
+      { v: "Your word is a lamp for my feet, a light on my path.", r: "Psalm 119:105" },
+      { v: "I am the way and the truth and the life.", r: "John 14:6" },
+      { v: "He restores my soul. He guides me along the right paths for his name's sake.", r: "Psalm 23:3" },
+      { v: "Whether you turn to the right or to the left, your ears will hear a voice behind you, saying, 'This is the way; walk in it.'", r: "Isaiah 30:21" },
+    ],
+    stressed: [
+      { v: "Cast all your anxiety on him because he cares for you.", r: "1 Peter 5:7" },
+      { v: "Come to me, all you who are weary and burdened, and I will give you rest.", r: "Matthew 11:28" },
+      { v: "Be still before the Lord and wait patiently for him.", r: "Psalm 37:7" },
+      { v: "The Lord will fight for you; you need only to be still.", r: "Exodus 14:14" },
+      { v: "Cast your cares on the Lord and he will sustain you.", r: "Psalm 55:22" },
+    ],
+    healing: [
+      { v: "He heals the brokenhearted and binds up their wounds.", r: "Psalm 147:3" },
+      { v: "But he was pierced for our transgressions; he was crushed for our iniquities — and by his wounds we are healed.", r: "Isaiah 53:5" },
+      { v: "Is anyone among you sick? Let them call the elders of the church to pray over them.", r: "James 5:14" },
+      { v: "Dear friend, I pray that you may enjoy good health and that all may go well with you.", r: "3 John 1:2" },
+      { v: "'For I will restore health to you, and your wounds I will heal,' declares the Lord.", r: "Jeremiah 30:17" },
+    ],
+    "burned out": [
+      { v: "Come to me, all you who are weary and burdened, and I will give you rest.", r: "Matthew 11:28" },
+      { v: "He gives strength to the weary and increases the power of the weak.", r: "Isaiah 40:29" },
+      { v: "He makes me lie down in green pastures; he leads me beside quiet waters, he refreshes my soul.", r: "Psalm 23:2-3" },
+      { v: "Even youths grow tired and weary, and young men stumble and fall; but those who hope in the Lord will renew their strength.", r: "Isaiah 40:30-31" },
+      { v: "My grace is sufficient for you, for my power is made perfect in weakness.", r: "2 Corinthians 12:9" },
+    ],
+    doubting: [
+      { v: "If any of you lacks wisdom, you should ask God, who gives generously to all without finding fault.", r: "James 1:5" },
+      { v: "Immediately the boy's father exclaimed, 'I do believe; help me overcome my unbelief!'", r: "Mark 9:24" },
+      { v: "Trust in the Lord with all your heart and lean not on your own understanding.", r: "Proverbs 3:5" },
+      { v: "Now faith is confidence in what we hope for and assurance about what we do not see.", r: "Hebrews 11:1" },
+      { v: "Jesus replied, 'You do not realize now what I am doing, but later you will understand.'", r: "John 13:7" },
+    ],
+    "comparison trap": [
+      { v: "For we are God's handiwork, created in Christ Jesus to do good works, which God prepared in advance for us to do.", r: "Ephesians 2:10" },
+      { v: "I praise you because I am fearfully and wonderfully made; your works are wonderful, I know that full well.", r: "Psalm 139:14" },
+      { v: "Each one should test their own actions. Then they can take pride in themselves alone, without comparing themselves to someone else.", r: "Galatians 6:4" },
+      { v: "Am I now trying to win the approval of human beings, or of God?", r: "Galatians 1:10" },
+      { v: "You are precious in my eyes, and honored, and I love you.", r: "Isaiah 43:4" },
+    ],
+    "imposter syndrome": [
+      { v: "I can do all this through him who gives me strength.", r: "Philippians 4:13" },
+      { v: "For God has not given us a spirit of fear, but of power and of love and of a sound mind.", r: "2 Timothy 1:7" },
+      { v: "But the Lord said to Moses, 'Who gave human beings their mouths?... Is it not I, the Lord? Now go; I will help you speak and will teach you what to say.'", r: "Exodus 4:11-12" },
+      { v: "Not that we are competent in ourselves to claim anything for ourselves, but our competence comes from God.", r: "2 Corinthians 3:5" },
+      { v: "Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.", r: "Joshua 1:9" },
+    ],
+    "financial stress": [
+      { v: "And my God will meet all your needs according to the riches of his glory in Christ Jesus.", r: "Philippians 4:19" },
+      { v: "Therefore do not worry about tomorrow, for tomorrow will worry about itself. Each day has enough trouble of its own.", r: "Matthew 6:34" },
+      { v: "Keep your lives free from the love of money and be content with what you have, because God has said, 'Never will I leave you; never will I forsake you.'", r: "Hebrews 13:5" },
+      { v: "Seek first his kingdom and his righteousness, and all these things will be given to you as well.", r: "Matthew 6:33" },
+      { v: "Cast all your anxiety on him because he cares for you.", r: "1 Peter 5:7" },
+    ],
+    exhausted: [
+      { v: "Come to me, all you who are weary and burdened, and I will give you rest.", r: "Matthew 11:28" },
+      { v: "The Lord is my shepherd, I lack nothing. He makes me lie down in green pastures.", r: "Psalm 23:1-2" },
+      { v: "He gives strength to the weary and increases the power of the weak.", r: "Isaiah 40:29" },
+      { v: "Let us not become weary in doing good, for at the proper time we will reap a harvest if we do not give up.", r: "Galatians 6:9" },
+      { v: "In peace I will lie down and sleep, for you alone, Lord, make me dwell in safety.", r: "Psalm 4:8" },
+    ],
+    seeking: [
+      { v: "Ask and it will be given to you; seek and you will find; knock and the door will be opened to you.", r: "Matthew 7:7" },
+      { v: "You will seek me and find me when you seek me with all your heart.", r: "Jeremiah 29:13" },
+      { v: "Draw near to God, and he will draw near to you.", r: "James 4:8" },
+      { v: "The Lord is good to those whose hope is in him, to the one who seeks him.", r: "Lamentations 3:25" },
+      { v: "I love those who love me, and those who seek me find me.", r: "Proverbs 8:17" },
+    ],
+    forgiven: [
+      { v: "If we confess our sins, he is faithful and just and will forgive us our sins and purify us from all unrighteousness.", r: "1 John 1:9" },
+      { v: "As far as the east is from the west, so far has he removed our transgressions from us.", r: "Psalm 103:12" },
+      { v: "Therefore, there is now no condemnation for those who are in Christ Jesus.", r: "Romans 8:1" },
+      { v: "For I will forgive their wickedness and will remember their sins no more.", r: "Hebrews 8:12" },
+      { v: "He does not treat us as our sins deserve or repay us according to our iniquities.", r: "Psalm 103:10" },
+    ],
+  };
+
+  const PRAYERS = {
+    anxious: "Lord, you know the worries that fill my mind right now. I release each one into your hands. Fill me with your peace that surpasses all understanding. Let your presence be my anchor in this storm. Amen.",
+    overwhelmed: "Father, I'm carrying more than I can hold. I lay it all down at your feet. Remind me that you are in control, and I don't have to carry this alone. Renew my strength today. Amen.",
+    afraid: "God, fear is gripping my heart. But your Word says you have not given me a spirit of fear — you've given me power, love, and a sound mind. Help me walk in that truth today. Amen.",
+    grateful: "Thank you, Lord. For life, for breath, for every good gift. Open my eyes to see your blessings in the ordinary moments. Let gratitude overflow from my heart today. Amen.",
+    hopeful: "Lord, thank you for the hope you've planted in my heart. Nurture it. Help me hold onto your promises even when I can't see the path ahead. You are faithful. Amen.",
+    sad: "Lord, you see my tears. You sit with me in this sadness. I don't need you to fix it right now — I just need to know you're here. Hold me close tonight. Amen.",
+    lonely: "Father, even in this loneliness I know you are with me. You promise never to leave or forsake me. Let me feel your presence like never before. You are enough. Amen.",
+    joyful: "Lord, thank you for this joy! Let it overflow into everything I do and everyone I encounter. Use this gladness in my heart to bring glory to your name. Amen.",
+    peaceful: "Thank you for your peace, Lord — the kind that passes understanding. Guard my heart and mind. Help me carry this stillness into the busyness of life. Amen.",
+    lost: "God, I'm not sure which way to go. But you know the path. Guide my steps, illuminate the way, and give me the courage to follow even when I can't see far ahead. Amen.",
+    stressed: "Jesus, you said 'come to me.' So I'm coming. I lay down this stress at your feet. Breathe your rest into my weary soul. Remind me that you carry what I cannot. Amen.",
+    healing: "Lord, you are the healer of every wound — body, soul, and spirit. Touch the places in me that hurt. Restore what has been broken. I trust your timing and your love. Amen.",
+    "burned out": "Father, I'm running on empty. I have given more than I have, and I need your rest. Hold me in this exhaustion. Teach me to receive your grace and not just give it. Renew my strength today. Amen.",
+    doubting: "Lord, I'm struggling to believe what I can't see. Like the man in Scripture, I cry out — I believe; help my unbelief. Meet me in my questions. You are not afraid of my doubts. Amen.",
+    "comparison trap": "God, I keep measuring my life against others and coming up short. Remind me that you made me uniquely. Help me run my own race, in my own lane, toward your vision for me. Amen.",
+    "imposter syndrome": "Lord, you called Moses even when he felt completely unqualified. You called David, Gideon, and Peter. You have called me too. Give me the courage to step forward knowing my competence is from you. Amen.",
+    "financial stress": "Father, I bring my financial worries to you today. You own the cattle on a thousand hills. You know my needs before I ask. Help me trust you more than my bank account. Provide for me, and give me wisdom in the process. Amen.",
+    exhausted: "Jesus, you said 'come to me.' Here I am. I am tired in ways I can't even fully express. Carry what I cannot carry. Give me the rest that only you can give — rest for my body, my mind, and my soul. Amen.",
+    seeking: "Lord, I'm searching for you. I don't always know where to look or what to pray. But your Word says those who seek you find you. Draw near to me as I draw near to you. Amen.",
+    forgiven: "Thank you, Father, for the gift of forgiveness. You have removed my sins as far as east is from west. Help me live in the freedom of that truth. Let me extend the same grace to others that you have given to me. Amen.",
+  };
+
+  const REFLECTIONS = {
+    anxious: "This verse reminds us that worry is an invitation to prayer. God doesn't ask you to stop feeling anxious — He asks you to bring those feelings to Him. The act of praying with thanksgiving transforms anxiety into trust.",
+    overwhelmed: "Jesus doesn't say 'figure it out' — He says 'come.' Your exhaustion is not a sign of failure. It's an invitation to rest in the One who carries the weight of the world.",
+    afraid: "Fear and faith can coexist. What matters is which one you feed. God's perfect love doesn't remove danger — it removes the power danger has over you.",
+    grateful: "Gratitude is a spiritual discipline. When we deliberately give thanks, we shift our perspective from what we lack to what we have been given. It transforms the ordinary into holy.",
+    hopeful: "God's plans are not always what we expect, but they are always for our good. Hope is not wishful thinking — it's confident trust in a God who keeps His promises.",
+    sad: "God doesn't rush your grief. He sits with you in it. Your sadness matters to Him — so much so that Jesus Himself wept. You are not alone in this moment.",
+    lonely: "Loneliness is one of the deepest human aches. But the God who created you for connection also promises His constant presence. You are never truly alone.",
+    joyful: "This joy isn't dependent on circumstances — it's rooted in knowing who God is. Let it fill you, overflow you, and spill into the lives of those around you.",
+    peaceful: "True peace isn't the absence of trouble — it's the presence of God in the middle of it. Let your mind dwell on what is true, noble, and good.",
+    lost: "A lamp only needs to illuminate the next step — not the entire path. Trust that God's word is enough light for where you are right now.",
+    stressed: "God designed rest as a rhythm of life, not a reward for finishing everything. You have permission to stop, breathe, and let Him be God.",
+    healing: "Healing is rarely instant — it's a journey. But God walks every step with you. His promise to heal is not just physical; it reaches your deepest wounds.",
+    "burned out": "Burnout is your body and soul saying 'I need what only God can give.' Rest is not laziness — it's faith that God can work while you stop. Let Him.",
+    doubting: "Doubt is not the opposite of faith — it's often the path to deeper faith. God met Thomas, Job, and the disciples in their questions. He will meet you in yours too.",
+    "comparison trap": "You were not made to run someone else's race. God prepared specific works for you before you were born. Your path is not less than theirs — it is uniquely yours.",
+    "imposter syndrome": "The gap between where you are and where you feel you 'should' be is where God works. Your insufficiency is His invitation. Let Him be strong where you feel weak.",
+    "financial stress": "God's provision doesn't always look like what we expect. Sometimes it's wisdom, a unexpected door, or simply peace in the waiting. Bring it to Him — He is the God who provides.",
+    exhausted: "Jesus didn't say 'pull yourself together.' He said 'come.' Your exhaustion is not a spiritual failure — it's an honest place where God meets you with grace.",
+    seeking: "Seeking is not weakness — it is worship. The very act of reaching for God pleases Him. You are already closer than you think.",
+    forgiven: "You are not what you have done. Forgiveness is not just the removal of guilt — it is the restoration of identity. You are a beloved child, fully clean before God.",
+  };
+
+  // ---- STATE ----
+  let currentTab = 'home';
+  let currentTranslation = 'NIV';
+  let selectedEmotion = '';
+  let showPrayer = false;
+  let savedVerses = JSON.parse(localStorage.getItem('vfy_verses') || '[]');
+  let currentDetailVerse = null;
+  let isDark = false;
+
+  // ---- VERSE OF THE DAY (date-based rotation) ----
+  const VOTD_POOL = [
+    { v: "Those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint.", r: "Isaiah 40:31", t: "Strength" },
+    { v: "The Lord is my shepherd, I lack nothing. He makes me lie down in green pastures, he leads me beside quiet waters.", r: "Psalm 23:1-2", t: "Peace" },
+    { v: "Be strong and courageous. Do not be afraid; do not be discouraged, for the Lord your God will be with you wherever you go.", r: "Joshua 1:9", t: "Courage" },
+    { v: "And we know that in all things God works for the good of those who love him, who have been called according to his purpose.", r: "Romans 8:28", t: "Trust" },
+    { v: "The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you.", r: "Numbers 6:24-25", t: "Blessing" },
+    { v: "Have I not commanded you? Be strong and courageous. Do not be frightened, and do not be dismayed, for the Lord your God is with you wherever you go.", r: "Joshua 1:9", t: "Courage" },
+    { v: "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.", r: "John 3:16", t: "Love" },
+    { v: "Rejoice always, pray continually, give thanks in all circumstances; for this is God's will for you in Christ Jesus.", r: "1 Thessalonians 5:16-18", t: "Joy" },
+    { v: "I praise you because I am fearfully and wonderfully made; your works are wonderful, I know that full well.", r: "Psalm 139:14", t: "Identity" },
+    { v: "The Lord is close to the brokenhearted and saves those who are crushed in spirit.", r: "Psalm 34:18", t: "Comfort" },
+    { v: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.", r: "Philippians 4:6", t: "Peace" },
+    { v: "Greater love has no one than this: to lay down one's life for one's friends.", r: "John 15:13", t: "Love" },
+    { v: "Come to me, all you who are weary and burdened, and I will give you rest.", r: "Matthew 11:28", t: "Rest" },
+    { v: "For we are God's handiwork, created in Christ Jesus to do good works, which God prepared in advance for us to do.", r: "Ephesians 2:10", t: "Purpose" },
+  ];
+  (function rotateVOTD() {
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    const entry = VOTD_POOL[dayOfYear % VOTD_POOL.length];
+    document.getElementById('votd-verse').textContent = '"' + entry.v + '"';
+    document.getElementById('votd-ref').textContent = entry.r + ' · NIV';
+    document.getElementById('votd-theme').textContent = entry.t;
+  })();
+
+  // ---- CLOCK ----
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  }
+  updateClock();
+  setInterval(updateClock, 10000);
+
+  // ---- DATE ----
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // ---- TAB SWITCHING ----
+  function switchTab(tab) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + tab).classList.add('active');
+
+    ['home','search','journal','settings'].forEach(t => {
+      document.getElementById('tab-icon-' + t).classList.remove('active-icon');
+      document.getElementById('tab-label-' + t).classList.remove('active-label');
+    });
+    document.getElementById('tab-icon-' + tab).classList.add('active-icon');
+    document.getElementById('tab-label-' + tab).classList.add('active-label');
+
+    // Update header
+    const titles = { home: 'Verse for You', search: 'Search Scripture', journal: 'My Journal', settings: 'Settings' };
+    document.getElementById('nav-title').textContent = titles[tab];
+    document.getElementById('translation-trigger').style.display = (tab === 'settings') ? 'none' : 'flex';
+
+    currentTab = tab;
+    if (tab === 'journal') renderJournal();
+    if (tab === 'search') { document.getElementById('search-empty').style.display = 'flex'; document.getElementById('search-results').style.display = 'none'; }
+  }
+
+  // ---- SELECT EMOTION ----
+  function selectEmotion(em) {
+    selectedEmotion = em;
+    document.getElementById('emotion-input').value = em;
+    document.querySelectorAll('.pill').forEach(p => {
+      p.classList.toggle('active', p.textContent === em);
+    });
+  }
+
+  document.getElementById('emotion-input').addEventListener('input', function() {
+    selectedEmotion = this.value;
+    document.querySelectorAll('.pill').forEach(p => {
+      p.classList.toggle('active', p.textContent === this.value);
+    });
+  });
+
+  // ---- FIND VERSES ----
+  function findVerses() {
+    const emotion = document.getElementById('emotion-input').value.trim().toLowerCase();
+    if (!emotion) return;
+
+    // Show loading
+    const btn = document.getElementById('find-btn');
+    document.getElementById('btn-label').style.display = 'none';
+    document.getElementById('spinner').style.display = 'block';
+    btn.disabled = true;
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'none';
+    showPrayer = false;
+    document.getElementById('prayer-card').classList.remove('visible');
+    document.getElementById('prayer-btn-text').textContent = 'Pray About This';
+    document.getElementById('prayer-chevron').textContent = '▾';
+
+    setTimeout(() => {
+      document.getElementById('btn-label').style.display = 'block';
+      document.getElementById('spinner').style.display = 'none';
+      btn.disabled = false;
+
+      // Find matching verses
+      let verses = VERSE_LIBRARY[emotion];
+      if (!verses) {
+        // Fallback: pick a random category
+        const keys = Object.keys(VERSE_LIBRARY);
+        verses = VERSE_LIBRARY[keys[Math.floor(Math.random() * keys.length)]];
+      }
+
+      selectedEmotion = emotion;
+      renderVerseCards(verses, 'verse-cards');
+      document.getElementById('results-label').textContent = `${verses.length} verses found — tap to read, ♡ to save`;
+      document.getElementById('results-section').style.display = 'block';
+
+      // Set prayer text
+      const prayer = PRAYERS[emotion] || PRAYERS['peaceful'];
+      document.getElementById('prayer-text').textContent = prayer;
+
+      document.getElementById('main-content').scrollTo({ top: 400, behavior: 'smooth' });
+    }, 1200);
+  }
+
+  function renderVerseCards(verses, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    verses.forEach((v, i) => {
+      const isSaved = savedVerses.some(s => s.reference === v.r);
+      const card = document.createElement('div');
+      card.className = 'verse-card';
+      card.style.animationDelay = (i * 0.08) + 's';
+      card.style.borderLeftColor = isSaved ? '#7A9B76' : 'var(--accent-light)';
+      card.innerHTML = `
+        <div class="verse-card-actions">
+          <button class="action-btn" onclick="event.stopPropagation(); saveVerse('${encodeURIComponent(v.v)}', '${v.r}', this)" title="Save to Journal">
+            ${isSaved ? '❤️' : '🤍'}
+          </button>
+          <button class="action-btn" onclick="event.stopPropagation(); copyVerse('${encodeURIComponent(v.v)}', '${v.r}', this)" title="Copy verse">📋</button>
+          <button class="action-btn" onclick="event.stopPropagation(); shareVerse('${encodeURIComponent(v.v)}', '${v.r}')" title="Share">↗</button>
+        </div>
+        <div class="verse-text">"${v.v}"</div>
+        <div class="verse-ref">${v.r}</div>
+        <div class="verse-translation">${currentTranslation} · ${TRANSLATIONS[currentTranslation]}</div>
+      `;
+      // Adjust margin for 3 action buttons
+      card.querySelector('.verse-text').style.marginRight = '116px';
+      card.onclick = () => openDetail(v.v, v.r, selectedEmotion);
+      container.appendChild(card);
+    });
+  }
+
+  // ---- PRAYER ----
+  function togglePrayer() {
+    showPrayer = !showPrayer;
+    const card = document.getElementById('prayer-card');
+    const btnText = document.getElementById('prayer-btn-text');
+    const chevron = document.getElementById('prayer-chevron');
+    if (showPrayer) {
+      card.classList.add('visible');
+      btnText.textContent = 'Hide Prayer';
+      chevron.textContent = '▴';
+    } else {
+      card.classList.remove('visible');
+      btnText.textContent = 'Pray About This';
+      chevron.textContent = '▾';
+    }
+  }
+
+  function sharePrayer() {
+    alert('Native share sheet would open with the prayer text. ✅');
+  }
+
+  // ---- SAVE VERSE ----
+  function saveVerse(encodedVerse, ref, btn) {
+    const verse = decodeURIComponent(encodedVerse);
+    if (savedVerses.some(s => s.reference === ref)) return;
+    savedVerses.push({
+      id: Date.now().toString(),
+      verse, reference: ref,
+      emotion: selectedEmotion,
+      savedAt: new Date().toISOString(),
+      translation: currentTranslation
+    });
+    localStorage.setItem('vfy_verses', JSON.stringify(savedVerses));
+    btn.textContent = '❤️';
+    btn.closest('.verse-card').style.borderLeftColor = '#7A9B76';
+  }
+
+  function shareVerse(encodedVerse, ref) {
+    alert(`Share sheet would open:\n\n"${decodeURIComponent(encodedVerse)}"\n— ${ref} (${currentTranslation})\n\nShared via Verse for You 📖 ✅`);
+  }
+
+  function copyVerse(encodedVerse, ref, btn) {
+    const text = `"${decodeURIComponent(encodedVerse)}" — ${ref} (${currentTranslation})`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '✓';
+        btn.style.color = 'var(--success, #7A9B76)';
+        setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+      });
+    } else {
+      alert('Copied!\n\n' + text);
+    }
+  }
+
+  // ---- VERSE DETAIL ----
+  function openDetail(verse, ref, emotion) {
+    currentDetailVerse = { verse, ref, emotion };
+    document.getElementById('detail-ref').textContent = ref + ' · ' + currentTranslation;
+    document.getElementById('detail-verse').textContent = '"' + verse + '"';
+    document.getElementById('detail-translation').textContent = TRANSLATIONS[currentTranslation] || '';
+    const reflection = REFLECTIONS[emotion] || REFLECTIONS['peaceful'];
+    document.getElementById('detail-reflection').textContent = reflection;
+    document.getElementById('verse-detail').classList.add('visible');
+  }
+
+  function closeDetail() {
+    document.getElementById('verse-detail').classList.remove('visible');
+    currentDetailVerse = null;
+  }
+
+  function saveCurrentVerse() {
+    if (!currentDetailVerse) return;
+    const { verse, ref, emotion } = currentDetailVerse;
+    if (savedVerses.some(s => s.reference === ref)) {
+      alert('Already saved to your journal! ✅');
+      return;
+    }
+    savedVerses.push({ id: Date.now().toString(), verse, reference: ref, emotion, savedAt: new Date().toISOString(), translation: currentTranslation });
+    localStorage.setItem('vfy_verses', JSON.stringify(savedVerses));
+    alert('Saved to your journal! 📖✅');
+  }
+
+  function shareCurrentVerse() {
+    if (!currentDetailVerse) return;
+    alert(`Share sheet would open with:\n\n"${currentDetailVerse.verse}"\n— ${currentDetailVerse.ref} (${currentTranslation})\n\nShared via Verse for You 📖 ✅`);
+  }
+
+  // ---- JOURNAL ----
+  function renderJournal() {
+    const list = document.getElementById('journal-list');
+    const empty = document.getElementById('journal-empty');
+    list.innerHTML = '';
+    if (savedVerses.length === 0) {
+      empty.style.display = 'flex';
+      return;
+    }
+    empty.style.display = 'none';
+    [...savedVerses].reverse().forEach((v, i) => {
+      const date = new Date(v.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const item = document.createElement('div');
+      item.className = 'journal-item';
+      item.style.animationDelay = (i * 0.06) + 's';
+      item.innerHTML = `
+        <div class="journal-emotion-tag">${v.emotion || 'saved'}</div>
+        <div class="journal-verse">"${v.verse}"</div>
+        <div class="journal-ref">${v.reference}</div>
+        <div class="journal-date">${date} · ${v.translation || 'NIV'}</div>
+        <button class="journal-delete" onclick="event.stopPropagation(); deleteVerse('${v.id}')">✕</button>
+      `;
+      item.onclick = () => openDetail(v.verse, v.reference, v.emotion);
+      list.appendChild(item);
+    });
+  }
+
+  function deleteVerse(id) {
+    savedVerses = savedVerses.filter(v => v.id !== id);
+    localStorage.setItem('vfy_verses', JSON.stringify(savedVerses));
+    renderJournal();
+  }
+
+  // ---- SEARCH ----
+  function setSearchTopic(topic) {
+    document.getElementById('search-input').value = topic;
+  }
+
+  function doSearch() {
+    const topic = document.getElementById('search-input').value.trim().toLowerCase();
+    if (!topic) return;
+
+    const btn = document.getElementById('search-btn');
+    btn.textContent = 'Searching...';
+    btn.disabled = true;
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('search-empty').style.display = 'none';
+
+    setTimeout(() => {
+      btn.textContent = 'Search Scripture';
+      btn.disabled = false;
+
+      let verses = VERSE_LIBRARY[topic];
+      if (!verses) {
+        const keys = Object.keys(VERSE_LIBRARY);
+        verses = VERSE_LIBRARY[keys[Math.floor(Math.random() * keys.length)]];
+      }
+
+      selectedEmotion = topic;
+      renderVerseCards(verses, 'search-verse-cards');
+      document.getElementById('search-results-label').textContent = `${verses.length} verses on "${topic}"`;
+      document.getElementById('search-results').style.display = 'block';
+    }, 1100);
+  }
+
+  // ---- TRANSLATION MODAL ----
+  function openTranslationModal() {
+    const optionsEl = document.getElementById('translation-options');
+    optionsEl.innerHTML = '';
+    Object.entries(TRANSLATIONS).forEach(([code, name]) => {
+      const opt = document.createElement('div');
+      opt.className = 'translation-option' + (code === currentTranslation ? ' selected' : '');
+      opt.innerHTML = `
+        <div>
+          <div class="translation-option-title">${code}</div>
+          <div class="translation-option-sub">${name}</div>
+        </div>
+        ${code === currentTranslation ? '<span class="translation-check">✓</span>' : ''}
+      `;
+      opt.onclick = () => selectTranslation(code);
+      optionsEl.appendChild(opt);
+    });
+    document.getElementById('translation-modal').classList.add('visible');
+  }
+
+  function closeTranslationModal(e) {
+    if (e.target === document.getElementById('translation-modal')) {
+      document.getElementById('translation-modal').classList.remove('visible');
+    }
+  }
+
+  function selectTranslation(code) {
+    currentTranslation = code;
+    document.getElementById('current-translation').textContent = code;
+    document.getElementById('translation-label').textContent = code;
+    document.querySelectorAll('.search-translation-label').forEach(el => el.textContent = code);
+    document.getElementById('translation-modal').classList.remove('visible');
+  }
+
+  // ---- DARK MODE ----
+  function toggleDark() {
+    isDark = !isDark;
+    document.getElementById('app').classList.toggle('dark-mode', isDark);
+    const toggle = document.getElementById('dark-toggle');
+    toggle.classList.toggle('on', isDark);
+    document.getElementById('outer-dark-btn').textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+  }
+
+  function reminderToggle() {
+    alert('Daily reminders are coming in the next update! 🔔');
+  }
+
+  // ---- SETTINGS DARK ----
+  // Already handled by toggleDark()
+
+  // ---- KEYBOARD ENTER ----
+  document.getElementById('emotion-input').addEventListener('keydown', e => { if (e.key === 'Enter') findVerses(); });
+  document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+</script>
+</body>
+</html>
