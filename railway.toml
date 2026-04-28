@@ -1,0 +1,5 @@
+[build]
+buildCommand = "npm ci && npm run server:build"
+
+[deploy]
+startCommand = "node server_dist/index.js"
