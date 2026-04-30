@@ -44,6 +44,23 @@ export default function VerseDetailModal() {
 
   const { verse, reference, emotion, isSaved: initialSaved, translation } = route.params;
   const [isSaved, setIsSaved] = useState(initialSaved);
+
+  // Format the emotion label for display — clean up internal prefixes from Search/Reading Plan origins
+  const emotionDisplayLabel = (() => {
+    if (emotion.toLowerCase().startsWith("search: ")) {
+      return `Found for: "${emotion.slice(8)}"`;
+    }
+    if (emotion.toLowerCase().startsWith("reading plan: ")) {
+      return `From "${emotion.slice(14)}" plan`;
+    }
+    if (emotion.toLowerCase() === "daily verse") {
+      return "Daily Verse";
+    }
+    if (emotion.toLowerCase() === "inspired") {
+      return "Feeling Inspired";
+    }
+    return `Feeling ${emotion}`;
+  })();
   const [reflection, setReflection] = useState<string | null>(null);
   const [isReflectionLoading, setIsReflectionLoading] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
@@ -239,7 +256,7 @@ export default function VerseDetailModal() {
             <ThemedText
               style={[styles.emotionText, { color: theme.textSecondary }]}
             >
-              Feeling {emotion}
+              {emotionDisplayLabel}
             </ThemedText>
           </View>
         </View>

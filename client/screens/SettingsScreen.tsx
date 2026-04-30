@@ -89,6 +89,13 @@ export default function SettingsScreen() {
     });
   };
 
+  const handleTermsOfService = () => {
+    Haptics.selectionAsync();
+    Linking.openURL("https://verseforyou.app/terms").catch(() => {
+      Alert.alert("Unable to Open", "Could not open the terms of service.");
+    });
+  };
+
   const handleFeedback = () => {
     Haptics.selectionAsync();
     Linking.openURL("mailto:hello@verseforyou.app?subject=Feedback%20-%20Verse%20for%20You").catch(() => {
@@ -309,10 +316,11 @@ export default function SettingsScreen() {
             <ThemedText
               style={[styles.versionText, { color: theme.textTertiary }]}
             >
-              1.5.0
+              1.6.0
             </ThemedText>
           )}
           {renderSettingRow("lock", "Privacy Policy", handlePrivacyPolicy)}
+          {renderSettingRow("file-text", "Terms of Service", handleTermsOfService)}
         </View>
       </View>
 

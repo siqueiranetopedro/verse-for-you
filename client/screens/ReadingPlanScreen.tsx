@@ -17,7 +17,7 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing, BorderRadius, Typography } from "@/constants/theme";
 import { READING_PLAN_THEMES } from "@/constants/bible";
 import { apiRequest } from "@/lib/query-client";
 import {
@@ -628,8 +628,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   dayVerse: {
-    fontSize: 16,
-    lineHeight: 26,
+    ...Typography.verseBodySmall,
     fontStyle: "italic",
     marginBottom: Spacing.lg,
   },

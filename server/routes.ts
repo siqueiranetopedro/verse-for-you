@@ -245,12 +245,155 @@ function getDayOfWeekVOTDHint(): string {
   return hints[day] || "";
 }
 
+// --- Verified Bible API Helpers ---
+// Priority 1 improvement: verse TEXT is now sourced from verified APIs whenever possible.
+// AI (GPT-4o-mini) is only used to SELECT which references to show AND to transcribe
+// references that aren't covered by the free verified sources — never to freely generate text.
+
+/**
+ * Fetches verse text from bible-api.com (free, no authentication required).
+ * Supports KJV translation only.
+ */
+async function fetchFromBibleApiCom(reference: string, translation: string): Promise<string | null> {
+  const translationMap: Record<string, string> = { KJV: "kjv" };
+  const apiTranslation = translationMap[translation];
+  if (!apiTranslation) return null;
+  try {
+    // "1 John 4:8" → "1+john+4:8"
+    const refForUrl = reference.toLowerCase().replace(/\s+/g, "+");
+    const url = `https://bible-api.com/${refForUrl}?translation=${apiTranslation}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!response.ok) return null;
+    const data = await response.json() as { text?: string };
+    const text = data.text?.trim().replace(/\n/g, " ");
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches verse text from the ESV API (https://api.esv.org).
+ * Requires ESV_API_KEY environment variable (free key at api.esv.org/account).
+ * Returns null when the key is absent or the request fails.
+ */
+async function fetchFromEsvApi(reference: string): Promise<string | null> {
+  const apiKey = process.env.ESV_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const params = new URLSearchParams({
+      q: reference,
+      "include-headings": "false",
+      "include-footnotes": "false",
+      "include-verse-numbers": "false",
+      "include-short-copyright": "false",
+      "include-passage-references": "false",
+    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const response = await fetch(`https://api.esv.org/v3/passage/text/?${params}`, {
+      headers: { Authorization: `Token ${apiKey}` },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!response.ok) return null;
+    const data = await response.json() as { passages?: string[] };
+    const text = data.passages?.[0]?.trim().replace(/\n/g, " ");
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Dispatches to the appropriate verified Bible source based on translation.
+ * Returns null when no verified source is available for the given translation.
+ */
+async function fetchVerifiedVerseText(reference: string, translation: string): Promise<string | null> {
+  if (translation === "ESV") return fetchFromEsvApi(reference);
+  if (translation === "KJV") return fetchFromBibleApiCom(reference, translation);
+  return null;
+}
+
+/**
+ * Hydrates a list of pre-validated Bible references with actual verse texts.
+ *
+ * Two-phase strategy:
+ *   Phase 1 — Verified API: ESV API (api.esv.org) for ESV, bible-api.com for KJV.
+ *             These sources are ground-truth; no AI is involved.
+ *   Phase 2 — Focused AI transcription: for all other translations (NIV, NLT, etc.),
+ *             GPT is given a specific, validated reference and asked to TRANSCRIBE it
+ *             exactly — not generate from scratch. This is far less prone to hallucination
+ *             than the previous approach (where AI simultaneously selected AND generated text).
+ *
+ * This separation means AI is never free-wheeling over both selection and text generation
+ * at the same time, which was the primary source of hallucinated or inaccurate verses.
+ */
+async function hydrateVerseTexts(
+  references: string[],
+  translation: string,
+  translationName: string
+): Promise<Array<{ verse: string; reference: string; translation: string }>> {
+  // Phase 1: try verified API for each reference in parallel
+  const results: Array<{ verse: string | null; reference: string }> = await Promise.all(
+    references.map(async (reference) => ({
+      verse: await fetchVerifiedVerseText(reference, translation),
+      reference,
+    }))
+  );
+
+  // Phase 2: batch-transcribe any references that didn't resolve via verified API
+  const unresolved = results.filter((r) => !r.verse);
+  if (unresolved.length > 0) {
+    const refList = unresolved.map((r) => `"${r.reference}"`).join(", ");
+    const transcriptionPrompt = `Transcribe the following Bible verses EXACTLY as they appear in the ${translationName} (${translation}) translation. Do not paraphrase, summarize, or change a single word — copy the text precisely.
+
+References to transcribe: ${refList}
+
+Respond with ONLY a JSON array (no markdown, no code blocks):
+[{"reference": "Book Chapter:Verse", "verse": "Exact verse text here"}, ...]`;
+
+    try {
+      const resp = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a precise Bible transcription tool. Your only job is to copy verse text exactly as it appears in the specified translation. Return valid JSON only.",
+          },
+          { role: "user", content: transcriptionPrompt },
+        ],
+        max_completion_tokens: unresolved.length * 200 + 100,
+      });
+      const raw = resp.choices[0]?.message?.content?.trim() || "";
+      const parsed = JSON.parse(
+        raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
+      ) as Array<{ reference: string; verse: string }>;
+      if (Array.isArray(parsed)) {
+        const map = new Map(parsed.map((p) => [p.reference, p.verse]));
+        for (const r of results) {
+          if (!r.verse) r.verse = map.get(r.reference) ?? null;
+        }
+      }
+    } catch {
+      // Transcription failed — remaining nulls will be filtered below
+    }
+  }
+
+  return results
+    .filter((r): r is { verse: string; reference: string } => !!r.verse)
+    .map(({ verse, reference }) => ({ verse, reference, translation }));
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint — for uptime monitoring
   app.get("/api/health", (_req: Request, res: Response) => {
     res.json({
       status: "ok",
-      version: "1.5.0",
+      version: "2.0.0",
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
     });
@@ -294,51 +437,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       const category = categories[Math.floor(Math.random() * categories.length)];
 
-      const prompt = `Select one uplifting Bible verse on the theme of "${category}". Use the ${translationName} (${translationCode}) translation.
+      // Phase 1: AI selects a reference only (no verse text — reduces hallucination risk)
+      const prompt = `Select one uplifting Bible verse REFERENCE on the theme of "${category}".
 
 Vary your selections widely across the full canon — Old Testament Psalms, Proverbs, Isaiah, and New Testament epistles are all welcome. Avoid always returning the same handful of famous verses.
 
-In 2026, people are especially hungry for verses about: rest from digital noise, finding identity outside achievement, courage amid uncertainty, and genuine human connection. Favor verses that feel timeless yet speak to today's soul.
+In 2026, people are especially hungry for verses about: rest from digital noise, finding identity outside achievement, courage amid uncertainty, and genuine human connection. Favor references that feel timeless yet speak to today's soul.
 
-Respond with ONLY a JSON object (no markdown, no code blocks):
-{"verse": "The actual Bible verse text here", "reference": "Book Chapter:Verse", "theme": "${category}"}`;
+Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include verse text:
+{"reference": "Book Chapter:Verse", "theme": "${category}"}`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "You are a helpful Bible assistant. Respond with valid JSON only.",
+            content: "You are a helpful Bible assistant. Respond with valid JSON only. Return only a reference and theme — no verse text.",
           },
           { role: "user", content: prompt },
         ],
-        max_completion_tokens: 250,
+        max_completion_tokens: 80,
       });
 
       const content = response.choices[0]?.message?.content?.trim() || "";
-      let parsed: any;
+      let selectionParsed: { reference: string; theme: string };
       try {
-        parsed = JSON.parse(
+        selectionParsed = JSON.parse(
           content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
         );
       } catch {
-        parsed = {
-          verse: "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.",
-          reference: "Proverbs 3:5-6",
-          theme: "trust",
-        };
+        selectionParsed = { reference: "Proverbs 3:5-6", theme: "trust" };
       }
 
-      // Validate the returned reference — fall back to known-good verse if hallucinated
-      if (!isValidBibleReference(parsed.reference)) {
-        parsed = {
-          verse: "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.",
-          reference: "Proverbs 3:5-6",
-          theme: "trust",
-        };
+      // Validate the returned reference — fall back to known-good if hallucinated
+      if (!isValidBibleReference(selectionParsed.reference)) {
+        selectionParsed = { reference: "Proverbs 3:5-6", theme: "trust" };
       }
 
-      const result = { ...parsed, translation: translationCode };
+      // Phase 2: hydrate with actual verse text from verified source (or AI transcription)
+      const hydrated = await hydrateVerseTexts(
+        [selectionParsed.reference],
+        translationCode,
+        translationName
+      );
+      const verseText =
+        hydrated[0]?.verse ||
+        "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.";
+
+      const result = {
+        verse: verseText,
+        reference: selectionParsed.reference,
+        theme: selectionParsed.theme,
+        translation: translationCode,
+      };
       randomVerseCache.set(cacheKey, result);
       res.json(result);
     } catch (error) {
@@ -364,51 +515,61 @@ Respond with ONLY a JSON object (no markdown, no code blocks):
 
       const seasonal = getSeasonalContext();
       const dayHint = getDayOfWeekVOTDHint();
-      const prompt = `Today is ${today}. ${seasonal} Select one uplifting Bible verse suitable as a "Verse of the Day" to inspire and encourage people. Use the ${translationName} (${translation}) translation.
+
+      // Phase 1: AI selects a reference and theme only — no verse text
+      const prompt = `Today is ${today}. ${seasonal} Select one uplifting Bible verse REFERENCE suitable as a "Verse of the Day".
 
 Day-of-week guidance: ${dayHint}
 
-Consider the season, time of day, AND the specific day of the week when choosing the verse — e.g. morning verses of awakening and purpose, evening verses of peace and rest, Monday verses of fresh starts and new mercies, Friday verses of rest and completion.
+Consider the season, time of day, AND the specific day of the week when choosing — e.g. morning verses of awakening, evening verses of peace, Monday verses of fresh starts, Friday verses of rest.
 
 Vary your selection widely across Scripture — Psalms, Proverbs, Isaiah, Lamentations, the Gospels, Epistles, etc. Avoid defaulting to a small set of famous verses. Prefer beautiful but less-quoted passages that will feel like a discovery.
 
-Respond with ONLY a JSON object in this exact format (no markdown, no code blocks):
-{"verse": "The actual Bible verse text here", "reference": "Book Chapter:Verse", "theme": "A one or two word theme, e.g. Fresh Start, Rest, Endurance, Gratitude"}`;
+Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include verse text:
+{"reference": "Book Chapter:Verse", "theme": "A one or two word theme, e.g. Fresh Start, Rest, Endurance, Gratitude"}`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "You are a helpful Bible assistant. Always respond with valid JSON only, no markdown formatting.",
+            content: "You are a helpful Bible assistant. Respond with valid JSON only. Return only a reference and theme — no verse text.",
           },
           { role: "user", content: prompt },
         ],
-        max_completion_tokens: 300,
+        max_completion_tokens: 80,
       });
 
       const content = response.choices[0]?.message?.content?.trim() || "";
-      let parsed: any;
+      let selectionParsed: { reference: string; theme: string };
       try {
-        parsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+        selectionParsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
       } catch {
-        parsed = {
-          verse: "For I know the plans I have for you, declares the Lord, plans for welfare and not for evil, to give you a future and a hope.",
-          reference: "Jeremiah 29:11",
-          theme: "Hope",
-        };
+        selectionParsed = { reference: "Jeremiah 29:11", theme: "Hope" };
       }
 
-      // Validate the returned reference — fall back to known-good verse if hallucinated
-      if (!isValidBibleReference(parsed.reference)) {
-        parsed = {
-          verse: "This is the day that the Lord has made; let us rejoice and be glad in it.",
-          reference: "Psalm 118:24",
-          theme: "Gratitude",
-        };
+      // Validate the returned reference — fall back to known-good if hallucinated
+      if (!isValidBibleReference(selectionParsed.reference)) {
+        selectionParsed = { reference: "Psalm 118:24", theme: "Gratitude" };
       }
 
-      const result = { ...parsed, translation, date: today };
+      // Phase 2: hydrate with actual verse text from verified source (or AI transcription)
+      const hydrated = await hydrateVerseTexts(
+        [selectionParsed.reference],
+        translation,
+        translationName
+      );
+      const verseText =
+        hydrated[0]?.verse ||
+        "This is the day that the Lord has made; let us rejoice and be glad in it.";
+
+      const result = {
+        verse: verseText,
+        reference: selectionParsed.reference,
+        theme: selectionParsed.theme,
+        translation,
+        date: today,
+      };
       dailyVerseCache.set(cacheKey, result);
       res.json(result);
     } catch (error) {
@@ -444,66 +605,65 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
       }
 
       const seasonal = getSeasonalContext();
+
+      // Phase 1: AI selects verse REFERENCES only — no text generation
       const prompt = `You are a compassionate pastor and Bible scholar in 2026. Someone is feeling "${emotion}" and needs Scripture that speaks directly to their heart. ${seasonal}
 
-Modern context: People in 2026 face unique pressures — AI-driven job uncertainty, social media comparison culture, digital burnout, loneliness despite constant connectivity, information overload, doomscrolling anxiety, and a longing for authentic community. Let these realities inform how you frame your selections without mentioning them explicitly.
+Modern context: People in 2026 face unique pressures — AI-driven job uncertainty, social media comparison culture, digital burnout, loneliness despite constant connectivity, information overload, doomscrolling anxiety, and a longing for authentic community.
 
-Select exactly ${verseCount} Bible verses for someone feeling "${emotion}". Requirements:
+Select exactly ${verseCount} Bible verse REFERENCES for someone feeling "${emotion}". Requirements:
 1. Each verse must DIRECTLY address the feeling of "${emotion}" — not tangentially related
 2. Include a diverse mix of Old Testament (Psalms, Proverbs, Isaiah, Prophets) and New Testament (Gospels, Paul's letters, Revelation)
 3. Prioritize lesser-known gems alongside familiar passages — avoid defaulting to Jeremiah 29:11, John 3:16, or Philippians 4:13 every time
-4. Choose verses that offer comfort, hope, perspective, or practical spiritual guidance — especially those that speak to stillness, identity, rest, and purpose in a fast-paced world
+4. Choose references that offer comfort, hope, perspective, or practical spiritual guidance
 5. Let the season and time of day subtly inform your selection if relevant
-6. Use the ${translationName} (${translationCode}) translation exactly — do not paraphrase or blend translations
 
-Respond with ONLY a JSON array (no markdown, no code blocks, no explanation):
-[{"verse": "Exact verse text", "reference": "Book Chapter:Verse"}, ...]`;
+Respond with ONLY a JSON array of reference strings (no verse text, no markdown, no code blocks):
+["Book Chapter:Verse", "Book Chapter:Verse", ...]`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "You are a helpful Bible assistant. Always respond with valid JSON only, no markdown formatting. Return an array of verse objects.",
+            content: "You are a helpful Bible assistant. Return ONLY a JSON array of verse reference strings — no verse text. No markdown.",
           },
           {
             role: "user",
             content: prompt,
           },
         ],
-        max_completion_tokens: 1500,
+        max_completion_tokens: 300,
       });
 
       const content = response.choices[0]?.message?.content?.trim() || "";
-      
-      let parsed;
+
+      let rawRefs: string[];
       try {
         const cleanContent = content
           .replace(/```json\n?/g, "")
           .replace(/```\n?/g, "")
           .trim();
-        parsed = JSON.parse(cleanContent);
+        const parsedRefs = JSON.parse(cleanContent);
+        // Accept both ["ref", ...] and [{reference: "ref"}, ...] shapes for robustness
+        if (Array.isArray(parsedRefs)) {
+          rawRefs = parsedRefs.map((item: unknown) =>
+            typeof item === "string" ? item : (item as any)?.reference || ""
+          );
+        } else {
+          rawRefs = ["Jeremiah 29:11"];
+        }
       } catch (parseError) {
-        console.error("Failed to parse AI response:", content);
-        parsed = [
-          {
-            verse: "For I know the plans I have for you, declares the Lord, plans for welfare and not for evil, to give you a future and a hope.",
-            reference: "Jeremiah 29:11",
-          },
-        ];
+        console.error("Failed to parse AI reference response:", content);
+        rawRefs = ["Jeremiah 29:11"];
       }
 
-      if (!Array.isArray(parsed)) {
-        parsed = [parsed];
-      }
+      // Filter to valid canonical references
+      const validRefs = rawRefs.filter(isValidBibleReference);
+      const refsToHydrate = validRefs.length > 0 ? validRefs : ["Jeremiah 29:11"];
 
-      const rawVerses = parsed.map((v: any) => ({
-        verse: v.verse || "",
-        reference: v.reference || "",
-        translation: translationCode,
-      })).filter((v: any) => v.verse && v.reference);
-
-      // Filter out hallucinated references before storing / returning
+      // Phase 2: hydrate references with actual verse texts (verified API or AI transcription)
+      const rawVerses = await hydrateVerseTexts(refsToHydrate, translationCode, translationName);
       const verses = filterValidVerses(rawVerses);
 
       // Store in cache

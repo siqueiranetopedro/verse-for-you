@@ -45,7 +45,7 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const inputRef = useRef<RNTextInput>(null);
@@ -126,7 +126,7 @@ export default function SearchScreen() {
       setVerses(data.verses || []);
       await checkSavedStates(data.verses || []);
     } catch (err) {
-      setError("Unable to search. Please try again.");
+      setError("Scripture seems quiet right now — take a breath and try again.");
       console.error("Error searching:", err);
     } finally {
       setIsLoading(false);
@@ -185,6 +185,11 @@ export default function SearchScreen() {
             {
               backgroundColor: theme.backgroundDefault,
               borderColor: isSaved ? theme.success : theme.border,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDark ? 0 : 0.05,
+              shadowRadius: isDark ? 0 : 10,
+              elevation: isDark ? 0 : 2,
             },
           ]}
           onPress={() => handleVersePress(item)}
@@ -579,8 +584,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   verseText: {
-    fontSize: 16,
-    lineHeight: 24,
+    ...Typography.verseBodySmall,
     fontStyle: "italic",
     marginBottom: Spacing.md,
     marginRight: 88, // room for 2 action buttons
