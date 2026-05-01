@@ -1140,6 +1140,17 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
     }
   });
 
+  // Temporary debug: check which env vars are present (no values exposed)
+  app.get("/api/debug-env", (_req: Request, res: Response) => {
+    res.json({
+      has_STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
+      has_STRIPE_PUBLISHABLE_KEY: !!process.env.STRIPE_PUBLISHABLE_KEY,
+      has_OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+      has_PORT: !!process.env.PORT,
+      STRIPE_SECRET_KEY_prefix: process.env.STRIPE_SECRET_KEY?.slice(0, 10) || "NOT SET",
+    });
+  });
+
   // Get Stripe publishable key for frontend
   app.get("/api/stripe/config", async (_req: Request, res: Response) => {
     try {
