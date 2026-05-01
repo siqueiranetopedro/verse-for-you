@@ -3,6 +3,7 @@ import {
   View,
   TextInput,
   FlatList,
+  ScrollView,
   StyleSheet,
   Pressable,
   ActivityIndicator,
@@ -304,71 +305,77 @@ export default function SearchScreen() {
     );
   };
 
-  const renderHeader = () => (
-        <View style={styles.headerSection}>
-          <ThemedText type="h3" style={[styles.title, { color: theme.text }]}>
-            Bible Concordance
-          </ThemedText>
+  return (
+    <View style={[styles.screenWrapper, { backgroundColor: theme.backgroundRoot }]}>
+      {/* Fixed search form always visible at top */}
+      <View
+        style={[
+          styles.searchForm,
+          { paddingTop: Math.max(insets.top + 44, headerHeight) + Spacing.sm, backgroundColor: theme.backgroundRoot },
+        ]}
+      >
+        <View
+          style={[
+            styles.inputContainer,
+            { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
+          ]}
+        >
+          <Feather name="search" size={20} color={theme.textTertiary} style={styles.searchIcon} />
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, { color: theme.text }]}
+            placeholder="Search any word..."
+            placeholderTextColor={theme.textTertiary}
+            value={keyword}
+            onChangeText={setKeyword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            onSubmitEditing={handleSearch}
+            testID="input-search"
+          />
+        </View>
 
-          <ThemedText style={[styles.explanationText, { color: theme.textTertiary }]}>
-            Find every verse containing a word or topic
-          </ThemedText>
-
-          <View
-            style={[
-              styles.inputContainer,
-              { backgroundColor: theme.backgroundDefault, borderColor: theme.border },
-            ]}
-          >
-            <Feather name="search" size={20} color={theme.textTertiary} style={styles.searchIcon} />
-            <TextInput
-              ref={inputRef}
-              style={[styles.input, { color: theme.text }]}
-              placeholder="Search any word..."
-              placeholderTextColor={theme.textTertiary}
-              value={keyword}
-              onChangeText={setKeyword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
-              onSubmitEditing={handleSearch}
-              testID="input-search"
-            />
-          </View>
-
-          <View style={styles.suggestionsRow}>
-            {SEARCH_SUGGESTIONS.map((item) => (
-              <Pressable
-                key={item}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.suggestionsRow}
+          contentContainerStyle={styles.suggestionsContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {SEARCH_SUGGESTIONS.map((item) => (
+            <Pressable
+              key={item}
+              style={[
+                styles.suggestionPill,
+                {
+                  backgroundColor:
+                    keyword.toLowerCase() === item
+                      ? theme.link
+                      : theme.backgroundSecondary,
+                },
+              ]}
+              onPress={() => handleSuggestionSelect(item)}
+              testID={`pill-search-${item}`}
+            >
+              <ThemedText
                 style={[
-                  styles.suggestionPill,
+                  styles.suggestionText,
                   {
-                    backgroundColor:
+                    color:
                       keyword.toLowerCase() === item
-                        ? theme.link
-                        : theme.backgroundSecondary,
+                        ? theme.buttonText
+                        : theme.textSecondary,
                   },
                 ]}
-                onPress={() => handleSuggestionSelect(item)}
-                testID={`pill-search-${item}`}
               >
-                <ThemedText
-                  style={[
-                    styles.suggestionText,
-                    {
-                      color:
-                        keyword.toLowerCase() === item
-                          ? theme.buttonText
-                          : theme.textSecondary,
-                    },
-                  ]}
-                >
-                  {item}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
+                {item}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </ScrollView>
 
+        <View style={styles.actionRow}>
           <Pressable
             style={[
               styles.translationSelector,
@@ -388,7 +395,7 @@ export default function SearchScreen() {
 
           <AnimatedPressable
             style={[
-              styles.searchButton,
+              styles.searchButtonInline,
               { backgroundColor: theme.link, opacity: keyword.trim() ? 1 : 0.5 },
               animatedButtonStyle,
             ]}
@@ -399,44 +406,41 @@ export default function SearchScreen() {
             testID="button-search"
           >
             {isLoading ? (
-              <ActivityIndicator color={theme.buttonText} />
+              <ActivityIndicator color={theme.buttonText} size="small" />
             ) : (
               <ThemedText style={[styles.buttonText, { color: theme.buttonText }]}>
                 Search
               </ThemedText>
             )}
           </AnimatedPressable>
-
-          {error ? (
-            <View style={[styles.errorContainer, { backgroundColor: theme.error + "20" }]}>
-              <ThemedText style={[styles.errorText, { color: theme.error }]}>
-                {error}
-              </ThemedText>
-            </View>
-          ) : null}
-
-          {verses.length > 0 ? (
-            <ThemedText style={[styles.resultsLabel, { color: theme.textSecondary }]}>
-              {verses.length} verses found for "{searchedKeyword}"
-            </ThemedText>
-          ) : null}
         </View>
-  );
 
-  return (
-    <>
+        {error ? (
+          <View style={[styles.errorContainer, { backgroundColor: theme.error + "20" }]}>
+            <ThemedText style={[styles.errorText, { color: theme.error }]}>
+              {error}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {verses.length > 0 ? (
+          <ThemedText style={[styles.resultsLabel, { color: theme.textSecondary }]}>
+            {verses.length} verses found for "{searchedKeyword}"
+          </ThemedText>
+        ) : null}
+      </View>
+
       <FlatList
-        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+        style={styles.container}
         contentContainerStyle={[
           styles.resultsContent,
-          { paddingTop: headerHeight + Spacing.xl, paddingBottom: tabBarHeight + Spacing["3xl"] },
+          { paddingBottom: tabBarHeight + Spacing["3xl"] },
           verses.length === 0 && styles.emptyListContent,
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
         data={verses}
         keyExtractor={(item, index) => `${item.reference}-${index}`}
         renderItem={renderVerse}
-        ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmptyState}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -448,7 +452,7 @@ export default function SearchScreen() {
         onSelect={handleTranslationSelect}
         onClose={() => setShowTranslationPicker(false)}
       />
-    </>
+    </View>
   );
 }
 
@@ -480,10 +484,13 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   suggestionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
     marginBottom: Spacing.md,
+  },
+  suggestionsContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingRight: Spacing.sm,
   },
   suggestionPill: {
     paddingHorizontal: Spacing.md,
