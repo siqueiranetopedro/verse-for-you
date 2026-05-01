@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   View,
+  ScrollView,
   StyleSheet,
   Pressable,
   ActivityIndicator,
@@ -74,14 +75,17 @@ export default function DonateScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <View
-        style={[
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
           styles.content,
           {
             paddingTop: headerHeight + Spacing.xl,
             paddingBottom: insets.bottom + Spacing["3xl"],
           },
         ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerSection}>
           <View
@@ -221,7 +225,7 @@ export default function DonateScreen() {
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -230,8 +234,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: Spacing.lg,
   },
   headerSection: {
