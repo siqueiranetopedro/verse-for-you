@@ -453,28 +453,22 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenWrapper: {
     flex: 1,
   },
-  headerSection: {
+  searchForm: {
     paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
-  title: {
-    textAlign: "center",
-    marginBottom: Spacing.sm,
-  },
-  explanationText: {
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: Spacing["2xl"],
-    lineHeight: 20,
+  container: {
+    flex: 1,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderRadius: BorderRadius.md,
     borderWidth: 2,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     paddingHorizontal: Spacing.lg,
   },
   searchIcon: {
@@ -489,7 +483,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   suggestionPill: {
     paddingHorizontal: Spacing.md,
@@ -500,15 +494,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
   },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
   translationSelector: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    marginBottom: Spacing.lg,
+    flex: 1,
   },
   translationContent: {
     flexDirection: "row",
@@ -516,8 +516,15 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   translationSelectorText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "500",
+  },
+  searchButtonInline: {
+    height: Spacing.buttonHeight,
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.xl,
   },
   searchButton: {
     height: Spacing.buttonHeight,
@@ -527,7 +534,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   buttonText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
