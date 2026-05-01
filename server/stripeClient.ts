@@ -12,7 +12,7 @@ function getStripeKeys() {
 
 export function getUncachableStripeClient() {
   const { secretKey } = getStripeKeys();
-  return new Stripe(secretKey, { apiVersion: '2025-11-17.clover' });
+  return new Stripe(secretKey, { apiVersion: '2024-06-20' });
 }
 
 export function getStripePublishableKey() {
