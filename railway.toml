@@ -1,5 +1,5 @@
 [build]
-buildCommand = "npm ci && npm run server:build"
+buildCommand = "npm ci && EXPO_PUBLIC_DOMAIN=verseforyou.app npx expo export --platform web && npm run server:build"
 
 [deploy]
 startCommand = "node server_dist/index.js"

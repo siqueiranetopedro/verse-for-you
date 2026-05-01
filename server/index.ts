@@ -161,47 +161,61 @@ function serveLandingPage({
 }
 
 function configureExpoAndLanding(app: express.Application) {
-  const templatePath = path.resolve(
-    process.cwd(),
-    "server",
-    "templates",
-    "landing-page.html",
-  );
-  const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
-  const appName = getAppName();
-
   log("Serving static Expo files with dynamic manifest routing");
 
+  const distDir = path.resolve(process.cwd(), "dist");
+  const hasWebBuild = fs.existsSync(path.join(distDir, "index.html"));
+
+  if (hasWebBuild) {
+    log("Expo web build found — serving from dist/");
+  } else {
+    log("No web build found in dist/ — falling back to landing page");
+  }
+
+  // Expo Go native manifest routing (for iOS/Android Expo Go client)
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api")) {
       return next();
     }
 
-    if (req.path !== "/" && req.path !== "/manifest") {
-      return next();
-    }
-
-    const platform = req.header("expo-platform");
-    if (platform && (platform === "ios" || platform === "android")) {
-      return serveExpoManifest(platform, res);
-    }
-
-    if (req.path === "/") {
-      return serveLandingPage({
-        req,
-        res,
-        landingPageTemplate,
-        appName,
-      });
+    if (req.path === "/manifest") {
+      const platform = req.header("expo-platform");
+      if (platform && (platform === "ios" || platform === "android")) {
+        return serveExpoManifest(platform, res);
+      }
     }
 
     next();
   });
 
+  // Static assets
   app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
   app.use(express.static(path.resolve(process.cwd(), "static-build")));
 
-  log("Expo routing: Checking expo-platform header on / and /manifest");
+  if (hasWebBuild) {
+    // Serve Expo web build — static assets first, then SPA fallback
+    app.use(express.static(distDir));
+
+    // SPA fallback: any non-API, non-asset route serves index.html
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path.startsWith("/api") || req.path.startsWith("/_expo") || req.path.startsWith("/assets")) {
+        return next();
+      }
+      res.sendFile(path.join(distDir, "index.html"));
+    });
+  } else {
+    // Fallback: serve landing page template
+    const templatePath = path.resolve(process.cwd(), "server", "templates", "landing-page.html");
+    if (fs.existsSync(templatePath)) {
+      const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+      const appName = getAppName();
+      app.get("/", (req: Request, res: Response) => {
+        serveLandingPage({ req, res, landingPageTemplate, appName });
+      });
+    }
+  }
+
+  log("Expo routing: configured");
 }
 
 function setupErrorHandler(app: express.Application) {

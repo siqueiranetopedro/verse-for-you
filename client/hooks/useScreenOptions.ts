@@ -1,8 +1,19 @@
 import { Platform } from "react-native";
 import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 
 import { useTheme } from "@/hooks/useTheme";
+
+// expo-glass-effect is iOS-only — guard against web/Android crashes
+let isLiquidGlassAvailable: () => boolean;
+try {
+  if (Platform.OS === "ios") {
+    isLiquidGlassAvailable = require("expo-glass-effect").isLiquidGlassAvailable;
+  } else {
+    isLiquidGlassAvailable = () => false;
+  }
+} catch {
+  isLiquidGlassAvailable = () => false;
+}
 
 interface UseScreenOptionsParams {
   transparent?: boolean;
@@ -15,7 +26,7 @@ export function useScreenOptions({
 
   return {
     headerTitleAlign: "center",
-    headerTransparent: transparent,
+    headerTransparent: transparent && Platform.OS !== "web",
     headerBlurEffect: isDark ? "dark" : "light",
     headerTintColor: theme.text,
     headerStyle: {
@@ -25,7 +36,7 @@ export function useScreenOptions({
         web: theme.backgroundRoot,
       }),
     },
-    gestureEnabled: true,
+    gestureEnabled: Platform.OS !== "web",
     gestureDirection: "horizontal",
     fullScreenGestureEnabled: isLiquidGlassAvailable() ? false : true,
     contentStyle: {

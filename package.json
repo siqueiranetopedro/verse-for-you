@@ -1,6 +1,6 @@
 {
   "name": "verse-for-you",
-  "main": "server_dist/index.js",
+  "main": "client/index.js",
   "version": "1.0.0",
   "scripts": {
     "start": "node server_dist/index.js",

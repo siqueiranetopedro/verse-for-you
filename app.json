@@ -42,6 +42,7 @@
     ],
     "experiments": {
       "reactCompiler": true
-    }
+    },
+    "entryPoint": "./client/index.js"
   }
 }
