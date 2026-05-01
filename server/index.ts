@@ -218,6 +218,70 @@ function configureExpoAndLanding(app: express.Application) {
   log("Expo routing: configured");
 }
 
+
+function configureLegalPages(app: express.Application) {
+  const legalStyle = `
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 700px; margin: 0 auto; padding: 40px 24px; color: #1C2B26; line-height: 1.7; }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    h2 { font-size: 18px; font-weight: 600; margin-top: 32px; }
+    p { color: #5A7267; }
+    a { color: #4E7C6B; }
+    .back { display:inline-block; margin-bottom:32px; color:#4E7C6B; text-decoration:none; font-weight:500; }
+  `;
+
+  app.get("/privacy", (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/html");
+    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Privacy Policy — Verse for You</title>
+      <style>${legalStyle}</style></head><body>
+      <a href="/" class="back">← Back to App</a>
+      <h1>Privacy Policy</h1>
+      <p>Last updated: May 2026</p>
+      <p>Verse for You ("we", "our", or "us") is committed to protecting your privacy.
+      This policy explains how we handle your information.</p>
+      <h2>Information We Collect</h2>
+      <p>We collect only what is necessary to provide the service: your saved verses and journal entries
+      are stored locally on your device. We do not sell or share your data with third parties.</p>
+      <h2>Data Storage</h2>
+      <p>Your verses, journal entries, and preferences are stored locally on your device using
+      AsyncStorage. No personal data is transmitted to our servers unless you explicitly use
+      a cloud sync feature.</p>
+      <h2>Third-Party Services</h2>
+      <p>We use OpenAI to generate verse recommendations and prayers based on your emotional input.
+      This interaction is anonymous — we do not attach your identity to these requests.</p>
+      <h2>Contact</h2>
+      <p>Questions? Email us at <a href="mailto:hello@verseforyou.app">hello@verseforyou.app</a></p>
+    </body></html>`);
+  });
+
+  app.get("/terms", (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/html");
+    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Terms of Service — Verse for You</title>
+      <style>${legalStyle}</style></head><body>
+      <a href="/" class="back">← Back to App</a>
+      <h1>Terms of Service</h1>
+      <p>Last updated: May 2026</p>
+      <p>By using Verse for You, you agree to these terms. Please read them carefully.</p>
+      <h2>Use of the App</h2>
+      <p>Verse for You is a spiritual companion app designed to connect you with Scripture.
+      You agree to use it for personal, non-commercial purposes only.</p>
+      <h2>Content</h2>
+      <p>Bible verses are sourced from publicly available translations. AI-generated prayers and
+      reflections are provided for personal spiritual guidance and are not a substitute for
+      pastoral or professional counsel.</p>
+      <h2>Disclaimer</h2>
+      <p>Verse for You is provided "as is." We make no warranties regarding the accuracy or
+      completeness of AI-generated content.</p>
+      <h2>Contact</h2>
+      <p>Questions? Email us at <a href="mailto:hello@verseforyou.app">hello@verseforyou.app</a></p>
+    </body></html>`);
+  });
+}
+
 function setupErrorHandler(app: express.Application) {
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     const error = err as {
@@ -245,6 +309,7 @@ function setupErrorHandler(app: express.Application) {
   setupRequestLogging(app);
 
   configureExpoAndLanding(app);
+  configureLegalPages(app);
 
   const server = await registerRoutes(app);
 

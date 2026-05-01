@@ -304,17 +304,7 @@ export default function SearchScreen() {
     );
   };
 
-  return (
-    <>
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: theme.backgroundRoot,
-            paddingTop: headerHeight + Spacing.xl,
-          },
-        ]}
-      >
+  const renderHeader = () => (
         <View style={styles.headerSection}>
           <ThemedText type="h3" style={[styles.title, { color: theme.text }]}>
             Bible Concordance
@@ -431,23 +421,26 @@ export default function SearchScreen() {
             </ThemedText>
           ) : null}
         </View>
+  );
 
-        <FlatList
-          style={styles.resultsList}
-          contentContainerStyle={[
-            styles.resultsContent,
-            { paddingBottom: tabBarHeight + Spacing["3xl"] },
-            verses.length === 0 && styles.emptyListContent,
-          ]}
-          scrollIndicatorInsets={{ bottom: insets.bottom }}
-          data={verses}
-          keyExtractor={(item, index) => `${item.reference}-${index}`}
-          renderItem={renderVerse}
-          ListEmptyComponent={renderEmptyState}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
+  return (
+    <>
+      <FlatList
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+        contentContainerStyle={[
+          styles.resultsContent,
+          { paddingTop: headerHeight + Spacing.xl, paddingBottom: tabBarHeight + Spacing["3xl"] },
+          verses.length === 0 && styles.emptyListContent,
+        ]}
+        scrollIndicatorInsets={{ bottom: insets.bottom }}
+        data={verses}
+        keyExtractor={(item, index) => `${item.reference}-${index}`}
+        renderItem={renderVerse}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmptyState}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      />
 
       <TranslationPickerModal
         visible={showTranslationPicker}

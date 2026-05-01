@@ -1,43 +1,43 @@
 import { Platform } from "react-native";
 
-// Bible Verse App - Warm spiritual palette with muted indigo accent
-const primaryColor = "#7C6E8A"; // Muted indigo-purple — spiritual, calm, modern
-const primaryDark = "#5C5070";
+// Verse for You — Warm sage palette: calm, trustworthy, spiritually grounded
+const primaryColor = "#4E7C6B"; // Warm sage green — growth, life, calm
+const primaryDark = "#3A5E52"; // Deeper sage for dark mode
 
 export const Colors = {
   light: {
-    text: "#2A2630",
-    textSecondary: "#6B6478",
-    textTertiary: "#A09AAC",
+    text: "#1C2B26",           // Deep forest — strong readability
+    textSecondary: "#5A7267",  // Muted sage — secondary info
+    textTertiary: "#8FA89F",   // Soft sage — hints and labels
     buttonText: "#FFFFFF",
-    tabIconDefault: "#A09AAC",
+    tabIconDefault: "#8FA89F",
     tabIconSelected: primaryColor,
     link: primaryColor,
-    backgroundRoot: "#F8F6FB",
+    backgroundRoot: "#F5F7F5",    // Barely-green white — warm and clean
     backgroundDefault: "#FFFFFF",
-    backgroundSecondary: "#F2EFF7",
-    backgroundTertiary: "#E8E4F0",
-    accent: "#C4BAD4",
-    success: "#7A9B76",
-    error: "#C17B7B",
-    border: "#E6E2EE",
+    backgroundSecondary: "#EDF2EF", // Soft sage-white
+    backgroundTertiary: "#E0EAE5",  // Light sage
+    accent: "#C4935A",           // Warm amber — CTAs and highlights
+    success: "#4E7C6B",
+    error: "#B56B6B",
+    border: "#D8E5DE",
   },
   dark: {
-    text: "#F0EEF5",
-    textSecondary: "#B0A8BE",
-    textTertiary: "#857E94",
+    text: "#E8F0EC",           // Warm off-white
+    textSecondary: "#9AB5A8",  // Muted sage
+    textTertiary: "#6B8A7E",   // Darker muted sage
     buttonText: "#FFFFFF",
-    tabIconDefault: "#857E94",
-    tabIconSelected: "#C4BAD4",
-    link: "#C4BAD4",
-    backgroundRoot: "#18161D",
-    backgroundDefault: "#232029",
-    backgroundSecondary: "#2D2A35",
-    backgroundTertiary: "#383442",
-    accent: "#7C6E8A",
-    success: "#7A9B76",
+    tabIconDefault: "#6B8A7E",
+    tabIconSelected: "#8FC4B0",
+    link: "#8FC4B0",
+    backgroundRoot: "#141E1B",    // Deep forest — rich dark
+    backgroundDefault: "#1C2B26", // Dark sage-green
+    backgroundSecondary: "#243530",
+    backgroundTertiary: "#2E4540",
+    accent: "#C4935A",
+    success: "#6BAF8E",
     error: "#C17B7B",
-    border: "#383442",
+    border: "#2E4540",
   },
 };
 

@@ -230,7 +230,6 @@ export default function ReadingPlanScreen() {
                 onPress={() => handleSelectTheme(planTheme.id, planTheme.label)}
                 testID={`plan-theme-${planTheme.id}`}
               >
-                <ThemedText style={styles.themeEmoji}>{planTheme.emoji}</ThemedText>
                 <View style={styles.themeInfo}>
                   <ThemedText style={[styles.themeLabel, { color: theme.text }]}>
                     {planTheme.label}
@@ -511,10 +510,6 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     marginBottom: Spacing.md,
-  },
-  themeEmoji: {
-    fontSize: 28,
-    marginRight: Spacing.md,
   },
   themeInfo: {
     flex: 1,
