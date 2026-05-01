@@ -1189,8 +1189,9 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
 
       res.json({ url: session.url });
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
       console.error("Error creating donation session:", error);
-      res.status(500).json({ error: "Failed to create donation session" });
+      res.status(500).json({ error: "Failed to create donation session", detail: msg });
     }
   });
 
