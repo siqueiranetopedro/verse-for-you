@@ -390,6 +390,56 @@ Respond with ONLY a JSON array (no markdown, no code blocks):
 
 
 
+
+// Pre-warm reading plan cache for all 7 themes after server startup.
+// Runs one theme every 30 seconds so it never overwhelms memory.
+// Only runs in production (Railway) to avoid burning API credits locally.
+const PLAN_THEMES = ["anxiety", "grief", "hope", "identity", "prayer", "strength", "faith"];
+
+async function warmOneTheme(theme: string): Promise<void> {
+  const cacheKey = `plan-${theme}-NIV`;
+  if (readingPlanCache.get(cacheKey)) return; // already cached
+
+  const translationName = TRANSLATIONS["NIV"];
+  const prompt = `You are a pastor designing a 7-day Bible reading plan on the theme of "${theme}".
+
+Create a structured 7-day reading plan where each day:
+1. Has a short title (e.g. "Day 1: Naming the Fear")
+2. Has ONE primary Bible verse in the ${translationName} (NIV) translation
+3. Has a 1–2 sentence devotional focus
+4. Has a short practical application (1 sentence)
+
+Respond with ONLY a JSON object (no markdown, no code blocks):
+{"theme":"${theme}","title":"...","description":"...","days":[{"day":1,"title":"...","verse":"...","reference":"...","focus":"...","application":"..."}]}`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: "You are a pastor. Respond with valid JSON only." },
+      { role: "user", content: prompt },
+    ],
+    max_completion_tokens: 2000,
+  });
+
+  const raw = response.choices[0]?.message?.content?.trim() || "";
+  const parsed = JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+  if (parsed.days) parsed.days = parsed.days.map((d: any) => ({ ...d, translation: "NIV" }));
+  readingPlanCache.set(cacheKey, parsed);
+  console.log(`[cache-warm] ✓ ${theme}`);
+}
+
+function scheduleWarmup(): void {
+  if (process.env.NODE_ENV === "development") return; // skip locally
+  PLAN_THEMES.forEach((theme, i) => {
+    // Stagger: first theme after 10s, then one every 30s
+    setTimeout(() => {
+      warmOneTheme(theme).catch((err) =>
+        console.warn(`[cache-warm] failed for "${theme}":`, err)
+      );
+    }, (10 + i * 30) * 1000);
+  });
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint — for uptime monitoring
   app.get("/api/health", (_req: Request, res: Response) => {
@@ -1201,6 +1251,8 @@ Respond with ONLY a JSON array (no markdown, no code blocks):
   });
 
   const httpServer = createServer(app);
+
+  scheduleWarmup();
 
   return httpServer;
 }
