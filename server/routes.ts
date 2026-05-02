@@ -738,6 +738,89 @@ Respond with ONLY a JSON array of reference strings (no verse text, no markdown,
     }
   });
 
+  // Hardcoded fallback verses — shown when OpenAI fails to return valid JSON.
+  // Keyed by lowercase keyword stem; each entry provides 3 reliable verses.
+  const SEARCH_FALLBACKS: Record<string, Array<{ verse: string; reference: string }>> = {
+    strength: [
+      { verse: "I can do all this through him who gives me strength.", reference: "Philippians 4:13" },
+      { verse: "But those who hope in the Lord will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint.", reference: "Isaiah 40:31" },
+      { verse: "The Lord is my strength and my shield; my heart trusts in him, and he helps me.", reference: "Psalm 28:7" },
+    ],
+    love: [
+      { verse: "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.", reference: "John 3:16" },
+      { verse: "Love is patient, love is kind. It does not envy, it does not boast, it is not proud.", reference: "1 Corinthians 13:4" },
+      { verse: "And now these three remain: faith, hope and love. But the greatest of these is love.", reference: "1 Corinthians 13:13" },
+    ],
+    peace: [
+      { verse: "And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.", reference: "Philippians 4:7" },
+      { verse: "Peace I leave with you; my peace I give you. I do not give to you as the world gives. Do not let your hearts be troubled and do not be afraid.", reference: "John 14:27" },
+      { verse: "You will keep in perfect peace those whose minds are steadfast, because they trust in you.", reference: "Isaiah 26:3" },
+    ],
+    faith: [
+      { verse: "Now faith is confidence in what we hope for and assurance about what we do not see.", reference: "Hebrews 11:1" },
+      { verse: "For we live by faith, not by sight.", reference: "2 Corinthians 5:7" },
+      { verse: "Truly I tell you, if you have faith as small as a mustard seed, you can say to this mountain, 'Move from here to there,' and it will move.", reference: "Matthew 17:20" },
+    ],
+    hope: [
+      { verse: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future.", reference: "Jeremiah 29:11" },
+      { verse: "May the God of hope fill you with all joy and peace as you trust in him, so that you may overflow with hope by the power of the Holy Spirit.", reference: "Romans 15:13" },
+      { verse: "But those who hope in the Lord will renew their strength.", reference: "Isaiah 40:31" },
+    ],
+    grace: [
+      { verse: "For it is by grace you have been saved, through faith—and this is not from yourselves, it is the gift of God.", reference: "Ephesians 2:8" },
+      { verse: "But he said to me, 'My grace is sufficient for you, for my power is made perfect in weakness.'", reference: "2 Corinthians 12:9" },
+      { verse: "Let us then approach God's throne of grace with confidence, so that we may receive mercy and find grace to help us in our time of need.", reference: "Hebrews 4:16" },
+    ],
+    fear: [
+      { verse: "For God has not given us a spirit of fear, but of power and of love and of a sound mind.", reference: "2 Timothy 1:7" },
+      { verse: "So do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you.", reference: "Isaiah 41:10" },
+      { verse: "When I am afraid, I put my trust in you.", reference: "Psalm 56:3" },
+    ],
+    prayer: [
+      { verse: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.", reference: "Philippians 4:6" },
+      { verse: "The prayer of a righteous person is powerful and effective.", reference: "James 5:16" },
+      { verse: "Ask and it will be given to you; seek and you will find; knock and the door will be opened to you.", reference: "Matthew 7:7" },
+    ],
+    forgive: [
+      { verse: "Bear with each other and forgive one another if any of you has a grievance against someone. Forgive as the Lord forgave you.", reference: "Colossians 3:13" },
+      { verse: "If we confess our sins, he is faithful and just and will forgive us our sins and purify us from all unrighteousness.", reference: "1 John 1:9" },
+      { verse: "For if you forgive other people when they sin against you, your heavenly Father will also forgive you.", reference: "Matthew 6:14" },
+    ],
+    wisdom: [
+      { verse: "If any of you lacks wisdom, you should ask God, who gives generously to all without finding fault, and it will be given to you.", reference: "James 1:5" },
+      { verse: "For the Lord gives wisdom; from his mouth come knowledge and understanding.", reference: "Proverbs 2:6" },
+      { verse: "The fear of the Lord is the beginning of wisdom, and knowledge of the Holy One is understanding.", reference: "Proverbs 9:10" },
+    ],
+    deliver: [
+      { verse: "And lead us not into temptation, but deliver us from the evil one.", reference: "Matthew 6:13" },
+      { verse: "The righteous person may have many troubles, but the Lord delivers him from them all.", reference: "Psalm 34:19" },
+      { verse: "He has delivered us from such a deadly peril, and he will deliver us again.", reference: "2 Corinthians 1:10" },
+    ],
+    joy: [
+      { verse: "Rejoice in the Lord always. I will say it again: Rejoice!", reference: "Philippians 4:4" },
+      { verse: "The joy of the Lord is your strength.", reference: "Nehemiah 8:10" },
+      { verse: "You make known to me the path of life; you will fill me with joy in your presence.", reference: "Psalm 16:11" },
+    ],
+    trust: [
+      { verse: "Trust in the Lord with all your heart and lean not on your own understanding.", reference: "Proverbs 3:5" },
+      { verse: "When I am afraid, I put my trust in you. In God, whose word I praise—in God I trust and am not afraid.", reference: "Psalm 56:3-4" },
+      { verse: "Those who trust in the Lord are like Mount Zion, which cannot be shaken but endures forever.", reference: "Psalm 125:1" },
+    ],
+  };
+
+  function getFallbackVerses(keyword: string): Array<{ verse: string; reference: string }> | null {
+    const lower = keyword.toLowerCase();
+    // Exact match first
+    if (SEARCH_FALLBACKS[lower]) return SEARCH_FALLBACKS[lower];
+    // Stem match — e.g. "forgiveness" matches "forgive", "trusting" matches "trust"
+    for (const key of Object.keys(SEARCH_FALLBACKS)) {
+      if (lower.startsWith(key) || key.startsWith(lower)) {
+        return SEARCH_FALLBACKS[key];
+      }
+    }
+    return null;
+  }
+
   // Concordance search - find verses by keyword
   app.post("/api/search", async (req: Request, res: Response) => {
     if (!applyRateLimit(aiLimiter, req, res)) return;
@@ -811,11 +894,19 @@ Format: [{"verse": "The actual Bible verse text here", "reference": "Book Chapte
               parsed = reverseExtracted;
             } else {
               console.error("Regex extraction also failed. Raw content:", content);
+              const fallback = getFallbackVerses(keyword);
+              if (fallback) {
+                return res.json({ verses: fallback.map(v => ({ ...v, translation: translationCode })), keyword });
+              }
               return res.status(500).json({ error: "Failed to parse search results" });
             }
           }
         } catch (regexError) {
           console.error("Failed to parse AI response:", content);
+          const fallback = getFallbackVerses(keyword);
+          if (fallback) {
+            return res.json({ verses: fallback.map(v => ({ ...v, translation: translationCode })), keyword });
+          }
           return res.status(500).json({ error: "Failed to parse search results" });
         }
       }
@@ -835,6 +926,16 @@ Format: [{"verse": "The actual Bible verse text here", "reference": "Book Chapte
       res.json({ verses, keyword });
     } catch (error) {
       console.error("Error searching verses:", error);
+      // Last resort: serve hardcoded fallback so the user always sees something
+      try {
+        const keyword = sanitizeString(req.body.keyword, 100) || "";
+        const { translation = "NIV" } = req.body;
+        const translationCode = TRANSLATIONS[translation] ? translation : "NIV";
+        const fallback = getFallbackVerses(keyword);
+        if (fallback) {
+          return res.json({ verses: fallback.map(v => ({ ...v, translation: translationCode })), keyword });
+        }
+      } catch (_) { /* ignore */ }
       res.status(500).json({ error: "Failed to search verses" });
     }
   });
