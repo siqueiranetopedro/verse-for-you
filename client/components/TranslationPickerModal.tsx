@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Modal, Pressable, StyleSheet } from "react-native";
+import { View, Modal, Pressable, StyleSheet, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -39,44 +39,50 @@ export default function TranslationPickerModal({
           <ThemedText style={[styles.modalTitle, { color: theme.text }]}>
             Select Translation
           </ThemedText>
-          {Object.entries(TRANSLATIONS).map(([code, name]) => (
-            <Pressable
-              key={code}
-              style={[
-                styles.translationOption,
-                {
-                  backgroundColor:
-                    selectedTranslation === code
-                      ? theme.backgroundSecondary
-                      : "transparent",
-                },
-              ]}
-              onPress={() => onSelect(code)}
-              testID={`translation-option-${code}`}
-            >
-              <View>
-                <ThemedText
-                  style={[
-                    styles.translationCode,
-                    {
-                      color:
-                        selectedTranslation === code ? theme.link : theme.text,
-                    },
-                  ]}
-                >
-                  {code}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.translationName, { color: theme.textSecondary }]}
-                >
-                  {name}
-                </ThemedText>
-              </View>
-              {selectedTranslation === code ? (
-                <Feather name="check" size={20} color={theme.link} />
-              ) : null}
-            </Pressable>
-          ))}
+          <ScrollView
+            style={styles.scrollList}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            {Object.entries(TRANSLATIONS).map(([code, name]) => (
+              <Pressable
+                key={code}
+                style={[
+                  styles.translationOption,
+                  {
+                    backgroundColor:
+                      selectedTranslation === code
+                        ? theme.backgroundSecondary
+                        : "transparent",
+                  },
+                ]}
+                onPress={() => onSelect(code)}
+                testID={`translation-option-${code}`}
+              >
+                <View>
+                  <ThemedText
+                    style={[
+                      styles.translationCode,
+                      {
+                        color:
+                          selectedTranslation === code ? theme.link : theme.text,
+                      },
+                    ]}
+                  >
+                    {code}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.translationName, { color: theme.textSecondary }]}
+                  >
+                    {name}
+                  </ThemedText>
+                </View>
+                {selectedTranslation === code ? (
+                  <Feather name="check" size={20} color={theme.link} />
+                ) : null}
+              </Pressable>
+            ))}
+          </ScrollView>
         </View>
       </Pressable>
     </Modal>
@@ -94,8 +100,12 @@ const styles = StyleSheet.create({
   modalContent: {
     width: "100%",
     maxWidth: 340,
+    maxHeight: "80%",
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
+  },
+  scrollList: {
+    flexGrow: 0,
   },
   modalTitle: {
     fontSize: 18,

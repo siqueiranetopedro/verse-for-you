@@ -556,20 +556,27 @@ Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include
     try {
       const today = new Date().toISOString().split("T")[0]; // e.g. "2026-04-06"
       const translation = (req.query.translation as string) || "NIV";
-      const cacheKey = `votd-${today}-${translation}`;
 
-      const cached = dailyVerseCache.get(cacheKey);
+      // Full result cache — if we already have this translation for today, return immediately
+      const fullCacheKey = `votd-${today}-${translation}`;
+      const cached = dailyVerseCache.get(fullCacheKey);
       if (cached) {
         return res.json(cached);
       }
 
       const translationName = TRANSLATIONS[translation] || TRANSLATIONS["NIV"];
 
-      const seasonal = getSeasonalContext();
-      const dayHint = getDayOfWeekVOTDHint();
+      // Phase 1: Reference selection is shared across ALL translations for the day.
+      // This ensures the same verse is shown regardless of which translation the user picks.
+      const refCacheKey = `votd-ref-${today}`;
+      let selectionParsed: { reference: string; theme: string } | undefined =
+        dailyVerseCache.get(refCacheKey);
 
-      // Phase 1: AI selects a reference and theme only — no verse text
-      const prompt = `Today is ${today}. ${seasonal} Select one uplifting Bible verse REFERENCE suitable as a "Verse of the Day".
+      if (!selectionParsed) {
+        const seasonal = getSeasonalContext();
+        const dayHint = getDayOfWeekVOTDHint();
+
+        const prompt = `Today is ${today}. ${seasonal} Select one uplifting Bible verse REFERENCE suitable as a "Verse of the Day".
 
 Day-of-week guidance: ${dayHint}
 
@@ -580,34 +587,37 @@ Vary your selection widely across Scripture — Psalms, Proverbs, Isaiah, Lament
 Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include verse text:
 {"reference": "Book Chapter:Verse", "theme": "A one or two word theme, e.g. Fresh Start, Rest, Endurance, Gratitude"}`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful Bible assistant. Respond with valid JSON only. Return only a reference and theme — no verse text.",
-          },
-          { role: "user", content: prompt },
-        ],
-        max_completion_tokens: 80,
-      });
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful Bible assistant. Respond with valid JSON only. Return only a reference and theme — no verse text.",
+            },
+            { role: "user", content: prompt },
+          ],
+          max_completion_tokens: 80,
+        });
 
-      const content = response.choices[0]?.message?.content?.trim() || "";
-      let selectionParsed: { reference: string; theme: string };
-      try {
-        selectionParsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-      } catch {
-        selectionParsed = { reference: "Jeremiah 29:11", theme: "Hope" };
+        const content = response.choices[0]?.message?.content?.trim() || "";
+        try {
+          selectionParsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+        } catch {
+          selectionParsed = { reference: "Jeremiah 29:11", theme: "Hope" };
+        }
+
+        // Validate the returned reference — fall back to known-good if hallucinated
+        if (!isValidBibleReference(selectionParsed!.reference)) {
+          selectionParsed = { reference: "Psalm 118:24", theme: "Gratitude" };
+        }
+
+        // Cache the reference for the whole day (all translations share it)
+        dailyVerseCache.set(refCacheKey, selectionParsed);
       }
 
-      // Validate the returned reference — fall back to known-good if hallucinated
-      if (!isValidBibleReference(selectionParsed.reference)) {
-        selectionParsed = { reference: "Psalm 118:24", theme: "Gratitude" };
-      }
-
-      // Phase 2: hydrate with actual verse text from verified source (or AI transcription)
+      // Phase 2: Hydrate with actual verse text in the requested translation
       const hydrated = await hydrateVerseTexts(
-        [selectionParsed.reference],
+        [selectionParsed!.reference],
         translation,
         translationName
       );
@@ -617,12 +627,12 @@ Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include
 
       const result = {
         verse: verseText,
-        reference: selectionParsed.reference,
-        theme: selectionParsed.theme,
+        reference: selectionParsed!.reference,
+        theme: selectionParsed!.theme,
         translation,
         date: today,
       };
-      dailyVerseCache.set(cacheKey, result);
+      dailyVerseCache.set(fullCacheKey, result);
       res.json(result);
     } catch (error) {
       console.error("Error fetching verse of the day:", error);
