@@ -758,8 +758,8 @@ Requirements:
 3. Include verses from different books of the Bible (Old and New Testament)
 4. Prioritize well-known and significant verses first
 
-Respond with ONLY a JSON array in this exact format (no markdown, no code blocks):
-[{"verse": "The actual Bible verse text here", "reference": "Book Chapter:Verse"}, ...]`;
+CRITICAL: Respond with ONLY a raw JSON array. No markdown. No backticks. No code fences. No explanatory text before or after. Start your response with [ and end with ].
+Format: [{"verse": "The actual Bible verse text here", "reference": "Book Chapter:Verse"}, ...]`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -786,8 +786,28 @@ Respond with ONLY a JSON array in this exact format (no markdown, no code blocks
           .trim();
         parsed = JSON.parse(cleanContent);
       } catch (parseError) {
-        console.error("Failed to parse AI response:", content);
-        return res.status(500).json({ error: "Failed to parse search results" });
+        // Fallback: try to extract individual verse objects with regex
+        console.warn("JSON.parse failed for search, attempting regex extraction. Raw content:", content);
+        try {
+          const verseMatches = content.matchAll(/\{\s*"verse"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"reference"\s*:\s*"([^"]+)"\s*\}/g);
+          const extracted = Array.from(verseMatches).map(m => ({ verse: m[1], reference: m[2] }));
+          if (extracted.length > 0) {
+            parsed = extracted;
+          } else {
+            // Also try reverse field order
+            const reverseMatches = content.matchAll(/\{\s*"reference"\s*:\s*"([^"]+)"\s*,\s*"verse"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g);
+            const reverseExtracted = Array.from(reverseMatches).map(m => ({ reference: m[1], verse: m[2] }));
+            if (reverseExtracted.length > 0) {
+              parsed = reverseExtracted;
+            } else {
+              console.error("Regex extraction also failed. Raw content:", content);
+              return res.status(500).json({ error: "Failed to parse search results" });
+            }
+          }
+        } catch (regexError) {
+          console.error("Failed to parse AI response:", content);
+          return res.status(500).json({ error: "Failed to parse search results" });
+        }
       }
 
       if (!Array.isArray(parsed)) {
