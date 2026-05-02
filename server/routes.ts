@@ -389,75 +389,6 @@ Respond with ONLY a JSON array (no markdown, no code blocks):
 }
 
 
-// Pre-warm reading plan cache for all themes so the first user never waits 10-15s.
-// Runs silently in the background after server startup.
-const PLAN_THEMES = ["anxiety", "grief", "hope", "identity", "prayer", "strength", "faith"];
-
-async function warmReadingPlanCache(): Promise<void> {
-  const DEFAULT_TRANSLATION = "NIV";
-  const translationName = TRANSLATIONS[DEFAULT_TRANSLATION];
-
-  for (const theme of PLAN_THEMES) {
-    const cacheKey = `plan-${theme}-${DEFAULT_TRANSLATION}`;
-    if (readingPlanCache.get(cacheKey)) continue; // already cached
-
-    try {
-      console.log(`[cache-warm] generating plan for theme: ${theme}`);
-      const prompt = `You are a pastor designing a 7-day Bible reading plan on the theme of "${theme}".
-
-Create a structured 7-day reading plan where each day:
-1. Has a short title (e.g. "Day 1: Naming the Fear")
-2. Has ONE primary Bible verse (a meaningful, well-chosen passage) in the ${translationName} (${DEFAULT_TRANSLATION}) translation
-3. Has a 1–2 sentence devotional focus (what to meditate on today)
-4. Has a short practical application (1 sentence — what the reader can do today)
-
-Make the plan progressively build from awareness/acknowledgment → understanding → transformation → action.
-Choose a diverse range of Old and New Testament passages. Avoid repeating the same books.
-
-Respond with ONLY a JSON object in this exact format (no markdown, no code blocks):
-{
-  "theme": "${theme}",
-  "title": "A compelling plan title (e.g. '7 Days of Peace')",
-  "description": "One sentence describing the journey",
-  "days": [
-    {
-      "day": 1,
-      "title": "Day title",
-      "verse": "The full verse text",
-      "reference": "Book Chapter:Verse",
-      "focus": "What to meditate on",
-      "application": "One practical action for today"
-    }
-  ]
-}`;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a thoughtful pastor creating Bible reading plans. Respond with valid JSON only." },
-          { role: "user", content: prompt },
-        ],
-        max_completion_tokens: 2000,
-      });
-
-      const raw = response.choices[0]?.message?.content?.trim() || "";
-      const parsed = JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-
-      if (parsed.days && Array.isArray(parsed.days)) {
-        parsed.days = parsed.days.map((d: any) => ({ ...d, translation: DEFAULT_TRANSLATION }));
-      }
-
-      readingPlanCache.set(cacheKey, parsed);
-      console.log(`[cache-warm] ✓ ${theme} plan ready`);
-
-      // Small delay between requests to avoid hammering the API
-      await new Promise((r) => setTimeout(r, 1500));
-    } catch (err) {
-      console.warn(`[cache-warm] failed for theme "${theme}":`, err);
-    }
-  }
-  console.log("[cache-warm] all reading plan themes pre-loaded");
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint — for uptime monitoring
@@ -1140,17 +1071,6 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
     }
   });
 
-  // Temporary debug: check which env vars are present (no values exposed)
-  app.get("/api/debug-env", (_req: Request, res: Response) => {
-    res.json({
-      has_STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
-      has_STRIPE_PUBLISHABLE_KEY: !!process.env.STRIPE_PUBLISHABLE_KEY,
-      has_OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
-      has_PORT: !!process.env.PORT,
-      STRIPE_SECRET_KEY_prefix: process.env.STRIPE_SECRET_KEY?.slice(0, 10) || "NOT SET",
-    });
-  });
-
   // Get Stripe publishable key for frontend
   app.get("/api/stripe/config", async (_req: Request, res: Response) => {
     try {
@@ -1200,9 +1120,8 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
 
       res.json({ url: session.url });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
       console.error("Error creating donation session:", error);
-      res.status(500).json({ error: "Failed to create donation session", detail: msg });
+      res.status(500).json({ error: "Failed to create donation session" });
     }
   });
 
@@ -1282,9 +1201,6 @@ Respond with ONLY a JSON array (no markdown, no code blocks):
   });
 
   const httpServer = createServer(app);
-
-  // Pre-warm reading plan cache in background — don't await so server starts immediately
-  setTimeout(() => warmReadingPlanCache().catch(console.warn), 3000);
 
   return httpServer;
 }
