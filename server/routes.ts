@@ -1217,17 +1217,31 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
   ]
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a thoughtful pastor creating Bible reading plans. Respond with valid JSON only.",
-          },
-          { role: "user", content: prompt },
-        ],
-        max_completion_tokens: 2000,
-      });
+      // Timeout after 12 seconds to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      let response;
+      try {
+        response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "You are a thoughtful pastor creating Bible reading plans. Respond with valid JSON only.",
+            },
+            { role: "user", content: prompt },
+          ],
+          max_completion_tokens: 2000,
+        }, { signal: controller.signal });
+      } catch (timeoutErr: any) {
+        clearTimeout(timeoutId);
+        if (timeoutErr.name === "AbortError" || timeoutErr.code === "ERR_OPERATION_TIMED_OUT") {
+          return res.status(504).json({ error: "Reading plan generation timed out. Please try again in a moment." });
+        }
+        throw timeoutErr;
+      }
+      clearTimeout(timeoutId);
 
       const content = response.choices[0]?.message?.content?.trim() || "";
       let parsed: any;
@@ -1236,7 +1250,7 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
           content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
         );
       } catch {
-        return res.status(500).json({ error: "Failed to generate reading plan" });
+        return res.status(500).json({ error: "Failed to parse reading plan. Please try again." });
       }
 
       // Ensure all days have the translation field

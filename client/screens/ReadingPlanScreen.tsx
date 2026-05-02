@@ -86,6 +86,23 @@ export default function ReadingPlanScreen() {
         "GET",
         `/api/reading-plan?theme=${encodeURIComponent(themeId)}&translation=${trans}`
       );
+
+      // Handle rate limiting — wait and do NOT immediately retry
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get("Retry-After") || "30", 10);
+        console.warn(`Reading plan rate limited. Retry after ${retryAfter}s`);
+        setIsLoading(false);
+        return; // Stop here, do not retry automatically
+      }
+
+      // Handle timeout/server error gracefully
+      if (response.status === 504 || response.status === 500) {
+        const errData = await response.json().catch(() => ({}));
+        console.error("Reading plan server error:", errData);
+        setIsLoading(false);
+        return; // Stop here, do not retry automatically
+      }
+
       const data = await response.json();
       setActivePlan(data);
       setView("plan");
