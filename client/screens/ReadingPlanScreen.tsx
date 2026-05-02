@@ -82,28 +82,34 @@ export default function ReadingPlanScreen() {
   const fetchPlan = async (themeId: string, trans: string, showLoader = true) => {
     if (showLoader) setIsLoading(true);
     try {
-      const response = await apiRequest(
-        "GET",
-        `/api/reading-plan?theme=${encodeURIComponent(themeId)}&translation=${trans}`
+      // Use raw fetch (not apiRequest) so we can inspect status before throwing,
+      // allowing proper 429 / 504 handling without the error being swallowed.
+      const rawResponse = await fetch(
+        `${getApiUrl()}/api/reading-plan?theme=${encodeURIComponent(themeId)}&translation=${trans}`,
+        { credentials: "include" }
       );
 
-      // Handle rate limiting — wait and do NOT immediately retry
-      if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.get("Retry-After") || "30", 10);
+      // Handle rate limiting — respect Retry-After and do NOT retry automatically
+      if (rawResponse.status === 429) {
+        const retryAfter = parseInt(rawResponse.headers.get("Retry-After") || "30", 10);
         console.warn(`Reading plan rate limited. Retry after ${retryAfter}s`);
         setIsLoading(false);
         return; // Stop here, do not retry automatically
       }
 
-      // Handle timeout/server error gracefully
-      if (response.status === 504 || response.status === 500) {
-        const errData = await response.json().catch(() => ({}));
+      // Handle timeout/server error gracefully — surface message, do not retry
+      if (rawResponse.status === 504 || rawResponse.status === 500) {
+        const errData = await rawResponse.json().catch(() => ({}));
         console.error("Reading plan server error:", errData);
         setIsLoading(false);
         return; // Stop here, do not retry automatically
       }
 
-      const data = await response.json();
+      if (!rawResponse.ok) {
+        throw new Error(`${rawResponse.status}: ${rawResponse.statusText}`);
+      }
+
+      const data = await rawResponse.json();
       setActivePlan(data);
       setView("plan");
       // Check saved states for all verses

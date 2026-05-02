@@ -6,6 +6,7 @@ import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClie
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  maxRetries: 1, // Prevent SDK retry cascade on 429 errors
 });
 
 // --- Rate Limiting ---
@@ -1219,7 +1220,7 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
 
       // Timeout after 12 seconds to prevent hanging requests
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const timeoutId = setTimeout(() => controller.abort(), 9000);
 
       let response;
       try {
@@ -1238,6 +1239,11 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
         clearTimeout(timeoutId);
         if (timeoutErr.name === "AbortError" || timeoutErr.code === "ERR_OPERATION_TIMED_OUT") {
           return res.status(504).json({ error: "Reading plan generation timed out. Please try again in a moment." });
+        }
+        // Propagate OpenAI rate limit as 429 instead of 500
+        if (timeoutErr.status === 429 || timeoutErr.code === "rate_limit_exceeded") {
+          res.setHeader("Retry-After", "30");
+          return res.status(429).json({ error: "Service is temporarily busy. Please wait a moment and try again." });
         }
         throw timeoutErr;
       }
