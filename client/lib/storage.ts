@@ -314,3 +314,86 @@ export async function clearReadingPlan(): Promise<void> {
     console.error("Error clearing reading plan:", error);
   }
 }
+
+// --- Reading Plan Content Cache (local, 12-hour TTL to match backend) ---
+
+const CACHED_READING_PLAN_KEY = "@cached_reading_plan_v1";
+
+interface CachedPlanEntry {
+  plan: unknown;
+  cachedAt: string; // ISO string
+  ttlHours: number;
+}
+
+type PlanCacheStore = Record<string, CachedPlanEntry>;
+
+function planCacheKey(themeId: string, translation: string): string {
+  return `${themeId.toLowerCase().trim()}-${translation.toUpperCase()}`;
+}
+
+/**
+ * Returns the locally-cached reading plan for a given theme + translation,
+ * or null if not found / expired.
+ */
+export async function getCachedReadingPlan(
+  themeId: string,
+  translation: string
+): Promise<unknown | null> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHED_READING_PLAN_KEY);
+    const store: PlanCacheStore = raw ? JSON.parse(raw) : {};
+    const key = planCacheKey(themeId, translation);
+    const entry = store[key];
+    if (!entry) return null;
+    const ttlMs = entry.ttlHours * 60 * 60 * 1000;
+    if (Date.now() - new Date(entry.cachedAt).getTime() > ttlMs) {
+      // Expired — evict and return null
+      delete store[key];
+      await AsyncStorage.setItem(CACHED_READING_PLAN_KEY, JSON.stringify(store));
+      return null;
+    }
+    return entry.plan;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist a generated reading plan locally so subsequent tab opens are instant.
+ */
+export async function setCachedReadingPlan(
+  themeId: string,
+  translation: string,
+  plan: unknown
+): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHED_READING_PLAN_KEY);
+    const store: PlanCacheStore = raw ? JSON.parse(raw) : {};
+    store[planCacheKey(themeId, translation)] = {
+      plan,
+      cachedAt: new Date().toISOString(),
+      ttlHours: 12,
+    };
+    await AsyncStorage.setItem(CACHED_READING_PLAN_KEY, JSON.stringify(store));
+  } catch (error) {
+    console.error("[storage] Error caching reading plan:", error);
+  }
+}
+
+/**
+ * Remove the locally-cached plan for a specific theme+translation.
+ * Call this when the user explicitly regenerates a plan.
+ */
+export async function evictCachedReadingPlan(
+  themeId: string,
+  translation: string
+): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHED_READING_PLAN_KEY);
+    const store: PlanCacheStore = raw ? JSON.parse(raw) : {};
+    delete store[planCacheKey(themeId, translation)];
+    await AsyncStorage.setItem(CACHED_READING_PLAN_KEY, JSON.stringify(store));
+  } catch {
+    // Non-critical
+  }
+}

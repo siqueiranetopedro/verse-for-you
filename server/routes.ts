@@ -1180,15 +1180,28 @@ Respond with ONLY the answer text — no greeting, no sign-off, no markdown.`;
   // Generate a 7-day thematic reading plan
   app.get("/api/reading-plan", async (req: Request, res: Response) => {
     if (!applyRateLimit(deepLimiter, req, res)) return;
-    try {
-      const theme = sanitizeString(req.query.theme as string, 100) || "hope";
-      const translation = (req.query.translation as string) || "NIV";
-      const translationName = TRANSLATIONS[translation] || TRANSLATIONS["NIV"];
-      const translationCode = TRANSLATIONS[translation] ? translation : "NIV";
 
+    // ── Structured per-request logging ────────────────────────────────────────
+    const reqId = `rp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const clientIp = getClientIp(req);
+    const theme = sanitizeString(req.query.theme as string, 100) || "hope";
+    const translation = (req.query.translation as string) || "NIV";
+    const translationName = TRANSLATIONS[translation] || TRANSLATIONS["NIV"];
+    const translationCode = TRANSLATIONS[translation] ? translation : "NIV";
+
+    console.log(
+      `[reading-plan] ${reqId} | ip=${clientIp} | theme=${theme} | lang=${translationCode}`
+    );
+
+    try {
       const cacheKey = `plan-${theme.toLowerCase().trim()}-${translationCode}`;
       const cached = readingPlanCache.get(cacheKey);
-      if (cached) return res.json(cached);
+      if (cached) {
+        console.log(`[reading-plan] ${reqId} | cache=HIT`);
+        return res.json(cached);
+      }
+
+      console.log(`[reading-plan] ${reqId} | cache=MISS | calling OpenAI…`);
 
       const prompt = `You are a pastor designing a 7-day Bible reading plan on the theme of "${theme}".
 
@@ -1218,7 +1231,7 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
   ]
 }`;
 
-      // Timeout after 12 seconds to prevent hanging requests
+      // Abort after 9 s to prevent Railway request timeouts
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 9000);
 
@@ -1238,10 +1251,11 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
       } catch (timeoutErr: any) {
         clearTimeout(timeoutId);
         if (timeoutErr.name === "AbortError" || timeoutErr.code === "ERR_OPERATION_TIMED_OUT") {
+          console.error(`[reading-plan] ${reqId} | TIMEOUT after 9s`);
           return res.status(504).json({ error: "Reading plan generation timed out. Please try again in a moment." });
         }
-        // Propagate OpenAI rate limit as 429 instead of 500
         if (timeoutErr.status === 429 || timeoutErr.code === "rate_limit_exceeded") {
+          console.warn(`[reading-plan] ${reqId} | OpenAI 429 (rate limit)`);
           res.setHeader("Retry-After", "30");
           return res.status(429).json({ error: "Service is temporarily busy. Please wait a moment and try again." });
         }
@@ -1255,19 +1269,39 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
         parsed = JSON.parse(
           content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
         );
-      } catch {
+      } catch (parseErr) {
+        console.error(
+          `[reading-plan] ${reqId} | JSON parse failed | raw="${content.slice(0, 200)}"`
+        );
         return res.status(500).json({ error: "Failed to parse reading plan. Please try again." });
       }
 
-      // Ensure all days have the translation field
       if (parsed.days && Array.isArray(parsed.days)) {
         parsed.days = parsed.days.map((d: any) => ({ ...d, translation: translationCode }));
       }
 
       readingPlanCache.set(cacheKey, parsed);
+      console.log(`[reading-plan] ${reqId} | OK | days=${parsed.days?.length ?? 0} | cached`);
       res.json(parsed);
-    } catch (error) {
-      console.error("Error generating reading plan:", error);
+    } catch (error: any) {
+      // ── Classify the error before surfacing ───────────────────────────────
+      const errType = error?.constructor?.name ?? "UnknownError";
+      const errStatus = error?.status ?? error?.statusCode ?? null;
+      const errCode = error?.code ?? null;
+      console.error(
+        `[reading-plan] ${reqId} | ERROR | type=${errType} | status=${errStatus} | code=${errCode} | ip=${clientIp} | theme=${theme} | lang=${translationCode} | msg=${error?.message}`
+      );
+
+      // OpenAI rate limit that leaked past the inner catch
+      if (errStatus === 429 || errCode === "rate_limit_exceeded") {
+        res.setHeader("Retry-After", "30");
+        return res.status(429).json({ error: "Service is temporarily busy. Please wait a moment and try again." });
+      }
+      // OpenAI or upstream 5xx
+      if (errStatus >= 500 && errStatus < 600) {
+        return res.status(502).json({ error: "AI service temporarily unavailable. Please try again in a moment." });
+      }
+
       res.status(500).json({ error: "Failed to generate reading plan" });
     }
   });

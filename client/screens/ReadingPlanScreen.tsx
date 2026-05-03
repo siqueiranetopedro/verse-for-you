@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -19,7 +19,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Typography } from "@/constants/theme";
 import { READING_PLAN_THEMES } from "@/constants/bible";
-import { apiRequest } from "@/lib/query-client";
+import { getApiUrl } from "@/lib/query-client";
 import {
   getActiveReadingPlan,
   startReadingPlan,
@@ -29,6 +29,9 @@ import {
   getSelectedTranslation,
   saveVerse,
   isVerseSaved,
+  getCachedReadingPlan,
+  setCachedReadingPlan,
+  evictCachedReadingPlan,
 } from "@/lib/storage";
 
 interface PlanDay {
@@ -58,9 +61,13 @@ export default function ReadingPlanScreen() {
   const [activePlan, setActivePlan] = useState<ReadingPlan | null>(null);
   const [progress, setProgress] = useState<ReadingPlanProgress | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [savedStates, setSavedStates] = useState<Record<string, boolean>>({});
   const [translation, setTranslation] = useState("NIV");
+
+  // Guard against duplicate in-flight requests (e.g. rapid tab switches)
+  const isFetchingRef = useRef(false);
 
   useEffect(() => {
     loadState();
@@ -72,56 +79,85 @@ export default function ReadingPlanScreen() {
       getSelectedTranslation(),
     ]);
     setTranslation(trans);
-    if (saved) {
-      setProgress(saved);
-      // Fetch the plan for the saved theme
-      fetchPlan(saved.themeId, trans, false);
+    if (!saved) return;
+
+    setProgress(saved);
+
+    // ── Fast path: serve from local cache (no network call) ──────────────────
+    const localPlan = await getCachedReadingPlan(saved.themeId, trans) as ReadingPlan | null;
+    if (localPlan) {
+      setActivePlan(localPlan);
+      setView("plan");
+      const states: Record<string, boolean> = {};
+      for (const d of localPlan.days ?? []) {
+        states[d.reference] = await isVerseSaved(d.verse, d.reference);
+      }
+      setSavedStates(states);
+      return;
     }
+
+    // ── Slow path: fetch from API (local cache expired or first load) ─────────
+    setView("plan");
+    fetchPlan(saved.themeId, trans);
   };
 
-  const fetchPlan = async (themeId: string, trans: string, showLoader = true) => {
-    if (showLoader) setIsLoading(true);
+  /**
+   * Fetch a reading plan from the API.
+   * – Deduplicates concurrent calls via `isFetchingRef`.
+   * – Persists the result in local AsyncStorage (12-hour TTL).
+   * – Sets `error` state instead of silently failing.
+   */
+  const fetchPlan = async (themeId: string, trans: string) => {
+    if (isFetchingRef.current) return; // already in-flight — do not stack requests
+    isFetchingRef.current = true;
+    setIsLoading(true);
+    setError(null);
+
     try {
-      // Use raw fetch (not apiRequest) so we can inspect status before throwing,
-      // allowing proper 429 / 504 handling without the error being swallowed.
       const rawResponse = await fetch(
         `${getApiUrl()}/api/reading-plan?theme=${encodeURIComponent(themeId)}&translation=${trans}`,
         { credentials: "include" }
       );
 
-      // Handle rate limiting — respect Retry-After and do NOT retry automatically
+      // Rate limited — surface a helpful message, never auto-retry
       if (rawResponse.status === 429) {
-        const retryAfter = parseInt(rawResponse.headers.get("Retry-After") || "30", 10);
-        console.warn(`Reading plan rate limited. Retry after ${retryAfter}s`);
-        setIsLoading(false);
-        return; // Stop here, do not retry automatically
+        const retryAfter = parseInt(rawResponse.headers.get("Retry-After") ?? "30", 10);
+        setError(
+          `The plan generator is busy right now. Please wait ${retryAfter} seconds and tap Retry.`
+        );
+        return;
       }
 
-      // Handle timeout/server error gracefully — surface message, do not retry
-      if (rawResponse.status === 504 || rawResponse.status === 500) {
-        const errData = await rawResponse.json().catch(() => ({}));
-        console.error("Reading plan server error:", errData);
-        setIsLoading(false);
-        return; // Stop here, do not retry automatically
-      }
-
+      // Server or gateway error
       if (!rawResponse.ok) {
-        throw new Error(`${rawResponse.status}: ${rawResponse.statusText}`);
+        const errData = await rawResponse.json().catch(() => ({}));
+        const fallback =
+          rawResponse.status === 504
+            ? "Plan generation timed out. Check your connection and tap Retry."
+            : "Couldn't load your reading plan. Please tap Retry.";
+        setError((errData as any).error ?? fallback);
+        return;
       }
 
-      const data = await rawResponse.json();
+      const data: ReadingPlan = await rawResponse.json();
       setActivePlan(data);
       setView("plan");
-      // Check saved states for all verses
+
+      // Persist locally so the next tab open is instant
+      await setCachedReadingPlan(themeId, trans, data);
+
+      // Resolve saved-state for each verse
       const states: Record<string, boolean> = {};
-      for (const d of data.days || []) {
+      for (const d of data.days ?? []) {
         states[d.reference] = await isVerseSaved(d.verse, d.reference);
       }
       setSavedStates(states);
     } catch (err) {
-      console.error("Error fetching reading plan:", err);
+      console.error("[ReadingPlan] fetch error:", err);
+      setError("Couldn't connect to the server. Check your connection and tap Retry.");
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -135,7 +171,10 @@ export default function ReadingPlanScreen() {
       completedDays: [],
     };
     setProgress(newProgress);
-    fetchPlan(themeId, translation, true);
+    setActivePlan(null);
+    setError(null);
+    setView("plan");
+    fetchPlan(themeId, translation);
   };
 
   const handleChangePlan = async () => {
@@ -143,8 +182,17 @@ export default function ReadingPlanScreen() {
     await clearReadingPlan();
     setProgress(null);
     setActivePlan(null);
+    setError(null);
     setView("picker");
     setExpandedDay(null);
+  };
+
+  /** User explicitly asked to regenerate — evict local cache first */
+  const handleRetry = () => {
+    if (!progress) return;
+    evictCachedReadingPlan(progress.themeId, translation);
+    setError(null);
+    fetchPlan(progress.themeId, translation);
   };
 
   const handleToggleDay = (dayIndex: number) => {
@@ -162,16 +210,13 @@ export default function ReadingPlanScreen() {
       return { ...prev, completedDays: newCompleted };
     });
 
-    // Check if this was the final day — fire a plan completion celebration
-    const planLength = activePlan?.days?.length || 7;
+    const planLength = activePlan?.days?.length ?? 7;
     const isLastDay = dayIndex === planLength - 1;
     if (isLastDay && progress) {
-      const alreadyCompletedAll =
-        progress.completedDays.length >= planLength - 1; // -1 because this day is being added now
+      const alreadyCompletedAll = progress.completedDays.length >= planLength - 1;
       if (alreadyCompletedAll || planLength === 1) {
-        // Small delay so the UI updates first
         setTimeout(() => {
-          const planTitle = activePlan?.title || "7-Day Reading Plan";
+          const planTitle = activePlan?.title ?? "7-Day Reading Plan";
           Alert.alert(
             "🎉 Plan Complete!",
             `You finished "${planTitle}"!\n\nCompleting a 7-day reading plan takes real dedication. Scripture has been guiding you all week — carry that momentum forward.\n\nWant to share this win with a friend?`,
@@ -181,7 +226,7 @@ export default function ReadingPlanScreen() {
                 text: "Share",
                 onPress: () => {
                   Share.share({
-                    message: `I just finished a 7-day Bible reading plan on "${activePlan?.theme || "Scripture"}" using Verse for You! If you're looking for a daily dose of Scripture, check it out:\nhttps://verseforyou.app`,
+                    message: `I just finished a 7-day Bible reading plan on "${activePlan?.theme ?? "Scripture"}" using Verse for You! If you're looking for a daily dose of Scripture, check it out:\nhttps://verseforyou.app`,
                     title: "I finished a reading plan!",
                   }).catch(() => {});
                 },
@@ -200,7 +245,7 @@ export default function ReadingPlanScreen() {
       id: Date.now().toString(),
       verse: day.verse,
       reference: day.reference,
-      emotion: `Reading Plan: ${activePlan?.theme || ""}`,
+      emotion: `Reading Plan: ${activePlan?.theme ?? ""}`,
       savedAt: new Date().toISOString(),
       translation: day.translation,
     });
@@ -216,10 +261,10 @@ export default function ReadingPlanScreen() {
     } catch {}
   };
 
-  const completedCount = progress?.completedDays?.length || 0;
-  const totalDays = activePlan?.days?.length || 7;
+  const completedCount = progress?.completedDays?.length ?? 0;
+  const totalDays = activePlan?.days?.length ?? 7;
 
-  // --- Picker View ---
+  // ── Picker View ──────────────────────────────────────────────────────────────
   if (view === "picker") {
     return (
       <ScrollView
@@ -270,7 +315,7 @@ export default function ReadingPlanScreen() {
     );
   }
 
-  // --- Plan View ---
+  // ── Plan View ────────────────────────────────────────────────────────────────
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
@@ -282,14 +327,47 @@ export default function ReadingPlanScreen() {
         },
       ]}
     >
+      {/* Loading state */}
       {isLoading ? (
         <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.link} />
           <ThemedText style={[styles.loadingText, { color: theme.textTertiary }]}>
-            Building your reading plan…
+            Generating your plan…
+          </ThemedText>
+          <ThemedText style={[styles.loadingSubtext, { color: theme.textTertiary }]}>
+            This takes a few seconds
           </ThemedText>
         </Animated.View>
+      ) : error ? (
+        /* Error state — always shown with a retry option */
+        <Animated.View entering={FadeIn.duration(300)} style={styles.errorContainer}>
+          <Feather name="alert-circle" size={36} color={theme.textTertiary} />
+          <ThemedText style={[styles.errorTitle, { color: theme.text }]}>
+            Plan unavailable
+          </ThemedText>
+          <ThemedText style={[styles.errorMessage, { color: theme.textSecondary }]}>
+            {error}
+          </ThemedText>
+          <View style={styles.errorActions}>
+            <Pressable
+              style={[styles.retryButton, { backgroundColor: theme.link }]}
+              onPress={handleRetry}
+            >
+              <Feather name="refresh-cw" size={15} color="#fff" />
+              <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+            </Pressable>
+            <Pressable
+              style={[styles.changePlanButton, { borderColor: theme.border }]}
+              onPress={handleChangePlan}
+            >
+              <ThemedText style={[styles.changePlanText, { color: theme.textSecondary }]}>
+                Choose a different plan
+              </ThemedText>
+            </Pressable>
+          </View>
+        </Animated.View>
       ) : activePlan ? (
+        /* Plan content */
         <Animated.View entering={FadeIn.duration(400)}>
           {/* Plan Header */}
           <View
@@ -324,7 +402,7 @@ export default function ReadingPlanScreen() {
             </View>
 
             <Pressable
-              style={[styles.changePlanButton, { borderColor: theme.border }]}
+              style={[styles.changeButton, { borderColor: theme.border }]}
               onPress={handleChangePlan}
             >
               <ThemedText style={[styles.changePlanText, { color: theme.textSecondary }]}>
@@ -335,9 +413,9 @@ export default function ReadingPlanScreen() {
 
           {/* Days */}
           {activePlan.days.map((day, index) => {
-            const isCompleted = progress?.completedDays?.includes(index) || false;
+            const isCompleted = progress?.completedDays?.includes(index) ?? false;
             const isExpanded = expandedDay === index;
-            const isSaved = savedStates[day.reference] || false;
+            const isSaved = savedStates[day.reference] ?? false;
 
             return (
               <Animated.View
@@ -373,10 +451,7 @@ export default function ReadingPlanScreen() {
                           <Feather name="check" size={14} color="#fff" />
                         ) : (
                           <ThemedText
-                            style={[
-                              styles.dayNumber,
-                              { color: theme.textSecondary },
-                            ]}
+                            style={[styles.dayNumber, { color: theme.textSecondary }]}
                           >
                             {day.day}
                           </ThemedText>
@@ -386,9 +461,7 @@ export default function ReadingPlanScreen() {
                         <ThemedText style={[styles.dayTitle, { color: theme.text }]}>
                           {day.title}
                         </ThemedText>
-                        <ThemedText
-                          style={[styles.dayReference, { color: theme.link }]}
-                        >
+                        <ThemedText style={[styles.dayReference, { color: theme.link }]}>
                           {day.reference}
                         </ThemedText>
                       </View>
@@ -405,26 +478,17 @@ export default function ReadingPlanScreen() {
                       entering={FadeInDown.duration(250)}
                       style={styles.dayContent}
                     >
-                      <ThemedText
-                        style={[styles.dayVerse, { color: theme.text }]}
-                      >
+                      <ThemedText style={[styles.dayVerse, { color: theme.text }]}>
                         "{day.verse}"
                       </ThemedText>
 
                       <View
-                        style={[
-                          styles.focusBox,
-                          { backgroundColor: theme.backgroundTertiary },
-                        ]}
+                        style={[styles.focusBox, { backgroundColor: theme.backgroundTertiary }]}
                       >
-                        <ThemedText
-                          style={[styles.focusLabel, { color: theme.link }]}
-                        >
+                        <ThemedText style={[styles.focusLabel, { color: theme.link }]}>
                           TODAY'S FOCUS
                         </ThemedText>
-                        <ThemedText
-                          style={[styles.focusText, { color: theme.textSecondary }]}
-                        >
+                        <ThemedText style={[styles.focusText, { color: theme.textSecondary }]}>
                           {day.focus}
                         </ThemedText>
                       </View>
@@ -436,9 +500,7 @@ export default function ReadingPlanScreen() {
                         ]}
                       >
                         <Feather name="check-circle" size={14} color={theme.success} />
-                        <ThemedText
-                          style={[styles.applicationText, { color: theme.text }]}
-                        >
+                        <ThemedText style={[styles.applicationText, { color: theme.text }]}>
                           {day.application}
                         </ThemedText>
                       </View>
@@ -481,21 +543,16 @@ export default function ReadingPlanScreen() {
                           </ThemedText>
                         </Pressable>
 
-                        {!isCompleted ? (
+                        {!isCompleted && (
                           <Pressable
-                            style={[
-                              styles.completeButton,
-                              { backgroundColor: theme.success },
-                            ]}
+                            style={[styles.completeButton, { backgroundColor: theme.success }]}
                             onPress={() => handleCompleteDay(index)}
                             testID={`button-complete-day-${index}`}
                           >
                             <Feather name="check" size={16} color="#fff" />
-                            <ThemedText style={styles.completeText}>
-                              Mark Complete
-                            </ThemedText>
+                            <ThemedText style={styles.completeText}>Mark Complete</ThemedText>
                           </Pressable>
-                        ) : null}
+                        )}
                       </View>
                     </Animated.View>
                   ) : null}
@@ -504,22 +561,23 @@ export default function ReadingPlanScreen() {
             );
           })}
         </Animated.View>
-      ) : null}
+      ) : (
+        /* Fallback loading (should only flash briefly if state is in transition) */
+        <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.link} />
+          <ThemedText style={[styles.loadingText, { color: theme.textTertiary }]}>
+            Generating your plan…
+          </ThemedText>
+        </Animated.View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: Spacing.lg,
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: Spacing.sm,
-  },
+  container: { flex: 1 },
+  contentContainer: { paddingHorizontal: Spacing.lg },
+  title: { textAlign: "center", marginBottom: Spacing.sm },
   subtitle: {
     fontSize: 14,
     textAlign: "center",
@@ -534,45 +592,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: Spacing.md,
   },
-  themeInfo: {
-    flex: 1,
-  },
-  themeLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  themeDays: {
-    fontSize: 13,
-  },
+  themeInfo: { flex: 1 },
+  themeLabel: { fontSize: 16, fontWeight: "600", marginBottom: 2 },
+  themeDays: { fontSize: 13 },
+  // Loading
   loadingContainer: {
     alignItems: "center",
     paddingTop: Spacing["4xl"],
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
-  loadingText: {
-    fontSize: 15,
-    fontStyle: "italic",
+  loadingText: { fontSize: 15, fontStyle: "italic" },
+  loadingSubtext: { fontSize: 13 },
+  // Error
+  errorContainer: {
+    alignItems: "center",
+    paddingTop: Spacing["4xl"],
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.md,
   },
+  errorTitle: { fontSize: 17, fontWeight: "600", marginTop: Spacing.sm },
+  errorMessage: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+  errorActions: { gap: Spacing.md, alignItems: "center", marginTop: Spacing.sm },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.full,
+  },
+  retryButtonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  // Plan header
   planHeader: {
     padding: Spacing.xl,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     marginBottom: Spacing.xl,
   },
-  planTitle: {
-    textAlign: "center",
-    marginBottom: Spacing.sm,
-  },
+  planTitle: { textAlign: "center", marginBottom: Spacing.sm },
   planDescription: {
     fontSize: 15,
     textAlign: "center",
     lineHeight: 22,
     marginBottom: Spacing.xl,
   },
-  progressRow: {
-    marginBottom: Spacing.lg,
-  },
+  progressRow: { marginBottom: Spacing.lg },
   progressLabel: {
     fontSize: 13,
     fontWeight: "600",
@@ -581,16 +645,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     textAlign: "center",
   },
-  progressTrack: {
-    height: 6,
-    borderRadius: BorderRadius.full,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: BorderRadius.full,
-  },
-  changePlanButton: {
+  progressTrack: { height: 6, borderRadius: BorderRadius.full, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: BorderRadius.full },
+  changeButton: {
     alignSelf: "center",
     marginTop: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -598,10 +655,14 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  changePlanText: {
-    fontSize: 13,
-    fontWeight: "500",
+  changePlanButton: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
+  changePlanText: { fontSize: 13, fontWeight: "500" },
+  // Day cards
   dayCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -627,19 +688,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dayNumber: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  dayTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  dayReference: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
+  dayNumber: { fontSize: 14, fontWeight: "700" },
+  dayTitle: { fontSize: 15, fontWeight: "600", marginBottom: 2 },
+  dayReference: { fontSize: 13, fontWeight: "500" },
   dayContent: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
@@ -661,10 +712,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: Spacing.xs,
   },
-  focusText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
+  focusText: { fontSize: 14, lineHeight: 20 },
   applicationBox: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -673,16 +721,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.lg,
   },
-  applicationText: {
-    fontSize: 14,
-    lineHeight: 20,
-    flex: 1,
-  },
-  dayActions: {
-    flexDirection: "row",
-    gap: Spacing.sm,
-    flexWrap: "wrap",
-  },
+  applicationText: { fontSize: 14, lineHeight: 20, flex: 1 },
+  dayActions: { flexDirection: "row", gap: Spacing.sm, flexWrap: "wrap" },
   dayActionButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -692,10 +732,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  dayActionText: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
+  dayActionText: { fontSize: 13, fontWeight: "500" },
   completeButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -704,9 +741,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.full,
   },
-  completeText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#fff",
-  },
+  completeText: { fontSize: 13, fontWeight: "600", color: "#fff" },
 });
