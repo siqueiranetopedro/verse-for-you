@@ -462,7 +462,7 @@ export default function ReadingPlanScreen() {
                           {day.title}
                         </ThemedText>
                         <ThemedText style={[styles.dayReference, { color: theme.link }]}>
-                          {day.reference}
+                          {day.reference} · {day.translation || translation}
                         </ThemedText>
                       </View>
                     </View>

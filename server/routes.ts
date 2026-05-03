@@ -1278,6 +1278,35 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
 
       if (parsed.days && Array.isArray(parsed.days)) {
         parsed.days = parsed.days.map((d: any) => ({ ...d, translation: translationCode }));
+
+        // Hydrate any day where OpenAI returned only a reference as the verse text.
+        // A "bare reference" is anything ≤ 60 chars that looks like "Book Chapter:Verse"
+        // or doesn't contain multiple words (i.e. no real sentence content).
+        const isBareReference = (text: string) => {
+          if (!text || text.trim().length === 0) return true;
+          if (text.trim().length <= 60 && /^[A-Z1-3]/.test(text.trim()) && text.includes(":")) return true;
+          // Fewer than 5 words → likely just a reference, not real verse text
+          if (text.trim().split(/\s+/).length < 5) return true;
+          return false;
+        };
+
+        const refsNeedingHydration = parsed.days
+          .filter((d: any) => isBareReference(d.verse))
+          .map((d: any) => d.reference)
+          .filter(Boolean);
+
+        if (refsNeedingHydration.length > 0) {
+          console.log(`[reading-plan] ${reqId} | hydrating ${refsNeedingHydration.length} bare-reference verses`);
+          const hydrated = await hydrateVerseTexts(refsNeedingHydration, translationCode, translationName);
+          const hydratedMap: Record<string, string> = {};
+          for (const h of hydrated) {
+            if (h.reference && h.verse) hydratedMap[h.reference] = h.verse;
+          }
+          parsed.days = parsed.days.map((d: any) => ({
+            ...d,
+            verse: isBareReference(d.verse) ? (hydratedMap[d.reference] || d.verse) : d.verse,
+          }));
+        }
       }
 
       readingPlanCache.set(cacheKey, parsed);
