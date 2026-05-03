@@ -465,15 +465,19 @@ Respond with ONLY a JSON object (no markdown, no code blocks):
 
     if (refsNeedingHydration.length > 0) {
       console.log(`[cache-warm] hydrating ${refsNeedingHydration.length} bare-reference verses for "${theme}"`);
-      const hydrated = await hydrateVerseTexts(refsNeedingHydration, "NIV", translationName);
-      const hydratedMap: Record<string, string> = {};
-      for (const h of hydrated) {
-        if (h.reference && h.verse) hydratedMap[h.reference] = h.verse;
+      try {
+        const hydrated = await hydrateVerseTexts(refsNeedingHydration, "NIV", translationName);
+        const hydratedMap: Record<string, string> = {};
+        for (const h of hydrated) {
+          if (h.reference && h.verse) hydratedMap[h.reference] = h.verse;
+        }
+        parsed.days = parsed.days.map((d: any) => ({
+          ...d,
+          verse: isBareReference(d.verse) ? (hydratedMap[d.reference] || d.verse) : d.verse,
+        }));
+      } catch (hydrateErr) {
+        console.warn(`[cache-warm] hydration failed for "${theme}" (non-fatal):`, hydrateErr);
       }
-      parsed.days = parsed.days.map((d: any) => ({
-        ...d,
-        verse: isBareReference(d.verse) ? (hydratedMap[d.reference] || d.verse) : d.verse,
-      }));
     }
   }
 
@@ -1349,15 +1353,20 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
 
         if (refsNeedingHydration.length > 0) {
           console.log(`[reading-plan] ${reqId} | hydrating ${refsNeedingHydration.length} bare-reference verses`);
-          const hydrated = await hydrateVerseTexts(refsNeedingHydration, translationCode, translationName);
-          const hydratedMap: Record<string, string> = {};
-          for (const h of hydrated) {
-            if (h.reference && h.verse) hydratedMap[h.reference] = h.verse;
+          try {
+            const hydrated = await hydrateVerseTexts(refsNeedingHydration, translationCode, translationName);
+            const hydratedMap: Record<string, string> = {};
+            for (const h of hydrated) {
+              if (h.reference && h.verse) hydratedMap[h.reference] = h.verse;
+            }
+            parsed.days = parsed.days.map((d: any) => ({
+              ...d,
+              verse: isBareReference(d.verse) ? (hydratedMap[d.reference] || d.verse) : d.verse,
+            }));
+          } catch (hydrateErr) {
+            // Hydration failed — serve the plan anyway with whatever verse text we have
+            console.warn(`[reading-plan] ${reqId} | hydration failed (non-fatal):`, hydrateErr);
           }
-          parsed.days = parsed.days.map((d: any) => ({
-            ...d,
-            verse: isBareReference(d.verse) ? (hydratedMap[d.reference] || d.verse) : d.verse,
-          }));
         }
       }
 
