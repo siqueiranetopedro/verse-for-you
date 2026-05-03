@@ -392,10 +392,14 @@ Respond with ONLY a JSON array (no markdown, no code blocks):
 
 
 
-// Pre-warm reading plan cache for all 7 themes after server startup.
-// Runs one theme every 30 seconds so it never overwhelms memory.
+// Pre-warm reading plan cache for ALL 16 themes after server startup.
+// Runs one theme every 45 seconds so it never overwhelms memory or OpenAI rate limits.
 // Only runs in production (Railway) to avoid burning API credits locally.
-const PLAN_THEMES = ["anxiety", "grief", "hope", "identity", "prayer", "strength", "faith"];
+const PLAN_THEMES = [
+  "anxiety", "grief", "hope", "identity", "prayer", "strength", "faith",
+  "forgiveness", "purpose", "gratitude", "relationships", "peace",
+  "digital-age", "rest", "courage", "comparison",
+];
 
 async function warmOneTheme(theme: string): Promise<void> {
   const cacheKey = `plan-${theme}-NIV`;
@@ -488,12 +492,13 @@ Respond with ONLY a JSON object (no markdown, no code blocks):
 function scheduleWarmup(): void {
   if (process.env.NODE_ENV === "development") return; // skip locally
   PLAN_THEMES.forEach((theme, i) => {
-    // Stagger: first theme after 10s, then one every 30s
+    // Stagger: first theme after 15s, then one every 45s
+    // 16 themes × 45s = ~12 min total warm-up window
     setTimeout(() => {
       warmOneTheme(theme).catch((err) =>
         console.warn(`[cache-warm] failed for "${theme}":`, err)
       );
-    }, (10 + i * 30) * 1000);
+    }, (15 + i * 45) * 1000);
   });
 }
 
@@ -1233,6 +1238,65 @@ Respond with ONLY the answer text — no greeting, no sign-off, no markdown.`;
     }
   });
 
+  // Hardcoded fallback plans — used when AI generation fails for any reason.
+  // Each has 3 days of real verse text; the client shows what it gets.
+  const FALLBACK_PLANS: Record<string, any> = {
+    forgiveness: {
+      theme: "forgiveness", title: "7 Days of Forgiveness", description: "A journey through Scripture on releasing what we hold against others and ourselves.",
+      days: [
+        { day: 1, title: "Day 1: Why We Must Forgive", verse: "Bear with each other and forgive one another if any of you has a grievance against someone. Forgive as the Lord forgave you.", reference: "Colossians 3:13", translation: "NIV", focus: "God's forgiveness of us is the model for our forgiveness of others.", application: "Think of one person you need to forgive and write their name down." },
+        { day: 2, title: "Day 2: Seventy Times Seven", verse: "Then Peter came to Jesus and asked, 'Lord, how many times shall I forgive my brother or sister who sins against me? Up to seven times?' Jesus answered, 'I tell you, not seven times, but seventy-seven times.'", reference: "Matthew 18:21-22", translation: "NIV", focus: "Forgiveness is not a one-time act but a continuous practice.", application: "Pray for someone who has hurt you — even if the feeling isn't there yet." },
+        { day: 3, title: "Day 3: God's Faithful Forgiveness", verse: "If we confess our sins, he is faithful and just and will forgive us our sins and purify us from all unrighteousness.", reference: "1 John 1:9", translation: "NIV", focus: "God's forgiveness is guaranteed — our part is honest confession.", application: "Spend five minutes in honest prayer, confessing anything weighing on you." },
+        { day: 4, title: "Day 4: Forgiving as God Forgives", verse: "Be kind and compassionate to one another, forgiving each other, just as in Christ God forgave you.", reference: "Ephesians 4:32", translation: "NIV", focus: "Kindness and forgiveness go hand in hand.", application: "Do one kind act today for someone who has wronged you." },
+        { day: 5, title: "Day 5: Releasing the Debt", verse: "Forgive us our debts, as we also have forgiven our debtors.", reference: "Matthew 6:12", translation: "NIV", focus: "Our own forgiveness is tied to our willingness to forgive.", application: "Use the Lord's Prayer as a personal prayer today." },
+        { day: 6, title: "Day 6: Forgiveness Brings Freedom", verse: "For as high as the heavens are above the earth, so great is his love for those who fear him; as far as the east is from the west, so far has he removed our transgressions from us.", reference: "Psalm 103:11-12", translation: "NIV", focus: "God does not just forgive — he completely removes our sin.", application: "Write down a sin you've been carrying guilt about, then tear up the paper." },
+        { day: 7, title: "Day 7: A New Start", verse: "Therefore, if anyone is in Christ, the new creation has come: The old has gone, the new is here!", reference: "2 Corinthians 5:17", translation: "NIV", focus: "Forgiveness makes us new — both given and received.", application: "Share with someone the freedom you've found through forgiveness this week." },
+      ],
+    },
+    peace: {
+      theme: "peace", title: "7 Days of Peace", description: "Discovering the peace that surpasses all understanding in every season of life.",
+      days: [
+        { day: 1, title: "Day 1: Peace That Passes Understanding", verse: "And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.", reference: "Philippians 4:7", translation: "NIV", focus: "God's peace is supernatural — it goes beyond what makes sense.", application: "When anxiety arises today, pause and say 'peace of God, guard my heart.'" },
+        { day: 2, title: "Day 2: He Is Our Peace", verse: "Peace I leave with you; my peace I give you. I do not give to you as the world gives. Do not let your hearts be troubled and do not be afraid.", reference: "John 14:27", translation: "NIV", focus: "Jesus gives a peace the world cannot provide or take away.", application: "Identify one thing stealing your peace and surrender it in prayer." },
+        { day: 3, title: "Day 3: Kept in Perfect Peace", verse: "You will keep in perfect peace those whose minds are steadfast, because they trust in you.", reference: "Isaiah 26:3", translation: "NIV", focus: "Peace comes from keeping our minds fixed on God.", application: "Set a reminder to pause three times today and fix your thoughts on God." },
+        { day: 4, title: "Day 4: Be Still", verse: "He says, 'Be still, and know that I am God; I will be exalted among the nations, I will be exalted in the earth.'", reference: "Psalm 46:10", translation: "NIV", focus: "Peace requires stillness — stopping the noise to know God.", application: "Spend 10 minutes in complete silence before God today." },
+        { day: 5, title: "Day 5: Peace Through Prayer", verse: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.", reference: "Philippians 4:6", translation: "NIV", focus: "Anxiety dissolves when we replace worry with prayer and gratitude.", application: "Write a list of three things you're anxious about and three things you're grateful for." },
+        { day: 6, title: "Day 6: Peace with God", verse: "Therefore, since we have been justified through faith, we have peace with God through our Lord Jesus Christ.", reference: "Romans 5:1", translation: "NIV", focus: "The deepest peace is being right with God — and it's already ours in Christ.", application: "Reflect on what it means that God is not against you but for you." },
+        { day: 7, title: "Day 7: Living at Peace", verse: "If it is possible, as far as it depends on you, live at peace with everyone.", reference: "Romans 12:18", translation: "NIV", focus: "Peace isn't just vertical (with God) — it reaches outward to others.", application: "Reach out to restore a broken relationship or offer forgiveness today." },
+      ],
+    },
+    gratitude: {
+      theme: "gratitude", title: "7 Days of Gratitude", description: "Cultivating a thankful heart in every circumstance.",
+      days: [
+        { day: 1, title: "Day 1: Give Thanks Always", verse: "Give thanks in all circumstances; for this is God's will for you in Christ Jesus.", reference: "1 Thessalonians 5:18", translation: "NIV", focus: "Gratitude is not dependent on circumstances — it's a choice.", application: "Write down 5 things you are grateful for that you normally overlook." },
+        { day: 2, title: "Day 2: Enter with Thanksgiving", verse: "Enter his gates with thanksgiving and his courts with praise; give thanks to him and praise his name.", reference: "Psalm 100:4", translation: "NIV", focus: "Gratitude is the doorway into God's presence.", application: "Begin your prayer time today with only thanksgiving — no requests." },
+        { day: 3, title: "Day 3: A Heart Transformed", verse: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.", reference: "Philippians 4:6", translation: "NIV", focus: "Gratitude reframes anxiety into trust.", application: "Replace one anxious thought today with a specific thank you to God." },
+        { day: 4, title: "Day 4: The Grateful Ten", verse: "Jesus asked, 'Were not all ten cleansed? Where are the other nine? Has no one returned to give praise to God except this foreigner?'", reference: "Luke 17:17-18", translation: "NIV", focus: "Receiving blessings and returning thanks are two different things.", application: "Return to thank someone who helped you that you forgot to acknowledge." },
+        { day: 5, title: "Day 5: Overflow with Thankfulness", verse: "So then, just as you received Christ Jesus as Lord, continue to live your lives in him, rooted and built up in him, strengthened in the faith as you were taught, and overflowing with thankfulness.", reference: "Colossians 2:6-7", translation: "NIV", focus: "A rooted faith naturally overflows with gratitude.", application: "Share a testimony of God's faithfulness with a friend or family member." },
+        { day: 6, title: "Day 6: Sacrifice of Praise", verse: "Through Jesus, therefore, let us continually offer to God a sacrifice of praise — the fruit of lips that openly profess his name.", reference: "Hebrews 13:15", translation: "NIV", focus: "Praise is a sacrifice — it costs something, especially in hard seasons.", application: "Choose to praise God out loud today, even if you don't feel like it." },
+        { day: 7, title: "Day 7: Thankfulness That Lasts", verse: "Let the peace of Christ rule in your hearts, since as members of one body you were called to peace. And be thankful.", reference: "Colossians 3:15", translation: "NIV", focus: "Gratitude and peace are companions — each feeds the other.", application: "Write a letter of gratitude to God for the past 7 days of this plan." },
+      ],
+    },
+  };
+
+  function getFallbackPlan(theme: string): any | null {
+    const lower = theme.toLowerCase().trim();
+    if (FALLBACK_PLANS[lower]) return FALLBACK_PLANS[lower];
+    // For any theme without a specific fallback, return a generic hope plan
+    return {
+      theme: lower, title: `7 Days of ${lower.charAt(0).toUpperCase() + lower.slice(1)}`, description: "A week of Scripture to guide you through this theme.",
+      days: [
+        { day: 1, title: "Day 1: God's Promises", verse: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you, plans to give you hope and a future.", reference: "Jeremiah 29:11", translation: "NIV", focus: "God has a purpose and a plan for your life.", application: "Spend time in prayer asking God to reveal his plan for you today." },
+        { day: 2, title: "Day 2: Trust and Lean", verse: "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.", reference: "Proverbs 3:5-6", translation: "NIV", focus: "Full trust means releasing our own understanding.", application: "Identify one area where you need to stop relying on your own wisdom." },
+        { day: 3, title: "Day 3: Strength for Today", verse: "I can do all this through him who gives me strength.", reference: "Philippians 4:13", translation: "NIV", focus: "Christ's strength is available to us in every moment.", application: "Before each task today, pray: 'Lord, I do this through you.'" },
+        { day: 4, title: "Day 4: He Is With You", verse: "So do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you; I will uphold you with my righteous right hand.", reference: "Isaiah 41:10", translation: "NIV", focus: "God's presence is the antidote to fear.", application: "Write 'Do not fear — God is with me' somewhere you'll see it all day." },
+        { day: 5, title: "Day 5: Rest in Him", verse: "Come to me, all you who are weary and burdened, and I will give you rest. Take my yoke upon you and learn from me, for I am gentle and humble in heart, and you will find rest for your souls.", reference: "Matthew 11:28-29", translation: "NIV", focus: "Jesus invites us to find rest — not just sleep, but soul rest.", application: "Schedule 15 minutes of intentional rest and use it to sit quietly with God." },
+        { day: 6, title: "Day 6: Love That Never Fails", verse: "And now these three remain: faith, hope and love. But the greatest of these is love.", reference: "1 Corinthians 13:13", translation: "NIV", focus: "Love is the greatest force in Scripture and in life.", application: "Do one unexpected act of love for someone who least expects it." },
+        { day: 7, title: "Day 7: A New Thing", verse: "See, I am doing a new thing! Now it springs up; do you not perceive it? I am making a way in the wilderness and streams in the wasteland.", reference: "Isaiah 43:19", translation: "NIV", focus: "God is always doing something new — we need eyes to see it.", application: "Reflect on how God has been at work this week, even in small ways." },
+      ],
+    };
+  }
+
   // Generate a 7-day thematic reading plan
   app.get("/api/reading-plan", async (req: Request, res: Response) => {
     if (!applyRateLimit(deepLimiter, req, res)) return;
@@ -1287,9 +1351,9 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
   ]
 }`;
 
-      // Abort after 9 s to prevent Railway request timeouts
+      // Abort after 20s — Railway's hard limit is 30s, leaving buffer for hydration
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 9000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
       let response;
       try {
@@ -1392,6 +1456,12 @@ Respond with ONLY a JSON object in this exact format (no markdown, no code block
         return res.status(502).json({ error: "AI service temporarily unavailable. Please try again in a moment." });
       }
 
+      // Last resort: serve a hardcoded fallback plan so the user never sees a dead screen
+      const fallback = getFallbackPlan(theme);
+      if (fallback) {
+        console.warn(`[reading-plan] ${reqId} | serving hardcoded fallback for theme="${theme}"`);
+        return res.json(fallback);
+      }
       res.status(500).json({ error: "Failed to generate reading plan" });
     }
   });
