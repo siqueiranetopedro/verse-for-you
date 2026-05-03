@@ -406,17 +406,39 @@ async function warmOneTheme(theme: string): Promise<void> {
 
 Create a structured 7-day reading plan where each day:
 1. Has a short title (e.g. "Day 1: Naming the Fear")
-2. Has ONE primary Bible verse in the ${translationName} (NIV) translation
-3. Has a 1–2 sentence devotional focus
-4. Has a short practical application (1 sentence)
+2. Has ONE primary Bible verse (a meaningful, well-chosen passage) in the ${translationName} (NIV) translation
+3. Has a 1–2 sentence devotional focus (what to meditate on today)
+4. Has a short practical application (1 sentence — what the reader can do today)
+
+CRITICAL field rules:
+- "verse": must contain the FULL verse text (e.g. "Blessed are those who mourn, for they will be comforted.")
+- "reference": must contain ONLY the scripture reference (e.g. "Matthew 5:4")
+- Do NOT swap these fields. Do NOT put a reference in the verse field.
 
 Respond with ONLY a JSON object (no markdown, no code blocks):
-{"theme":"${theme}","title":"...","description":"...","days":[{"day":1,"title":"...","verse":"...","reference":"...","focus":"...","application":"..."}]}`;
+{
+  "theme": "${theme}",
+  "title": "A compelling plan title",
+  "description": "One sentence describing the journey",
+  "days": [
+    {
+      "day": 1,
+      "title": "Day title",
+      "verse": "The full verse text — not the reference",
+      "reference": "Book Chapter:Verse — not the verse text",
+      "focus": "What to meditate on",
+      "application": "One practical action for today"
+    }
+  ]
+}`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
-      { role: "system", content: "You are a pastor. Respond with valid JSON only." },
+      {
+        role: "system",
+        content: "You are a pastor creating Bible reading plans. Respond with valid JSON only. IMPORTANT: the 'verse' field must contain full scripture text, the 'reference' field must contain only the book/chapter/verse citation.",
+      },
       { role: "user", content: prompt },
     ],
     max_completion_tokens: 2000,
@@ -424,7 +446,37 @@ Respond with ONLY a JSON object (no markdown, no code blocks):
 
   const raw = response.choices[0]?.message?.content?.trim() || "";
   const parsed = JSON.parse(raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-  if (parsed.days) parsed.days = parsed.days.map((d: any) => ({ ...d, translation: "NIV" }));
+
+  if (parsed.days && Array.isArray(parsed.days)) {
+    parsed.days = parsed.days.map((d: any) => ({ ...d, translation: "NIV" }));
+
+    // Hydrate any day where OpenAI still returned a bare reference as verse text
+    const isBareReference = (text: string) => {
+      if (!text || text.trim().length === 0) return true;
+      if (text.trim().length <= 60 && /^[A-Z1-3]/.test(text.trim()) && text.includes(":")) return true;
+      if (text.trim().split(/\s+/).length < 5) return true;
+      return false;
+    };
+
+    const refsNeedingHydration = parsed.days
+      .filter((d: any) => isBareReference(d.verse))
+      .map((d: any) => d.reference)
+      .filter(Boolean);
+
+    if (refsNeedingHydration.length > 0) {
+      console.log(`[cache-warm] hydrating ${refsNeedingHydration.length} bare-reference verses for "${theme}"`);
+      const hydrated = await hydrateVerseTexts(refsNeedingHydration, "NIV", translationName);
+      const hydratedMap: Record<string, string> = {};
+      for (const h of hydrated) {
+        if (h.reference && h.verse) hydratedMap[h.reference] = h.verse;
+      }
+      parsed.days = parsed.days.map((d: any) => ({
+        ...d,
+        verse: isBareReference(d.verse) ? (hydratedMap[d.reference] || d.verse) : d.verse,
+      }));
+    }
+  }
+
   readingPlanCache.set(cacheKey, parsed);
   console.log(`[cache-warm] ✓ ${theme}`);
 }
