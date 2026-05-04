@@ -790,7 +790,15 @@ Respond with ONLY a JSON array of reference strings (no verse text, no markdown,
       const rawVerses = await hydrateVerseTexts(refsToHydrate, translationCode, translationName);
       const verses = filterValidVerses(rawVerses);
 
-      // Store in cache
+      if (verses.length === 0) {
+        // Do NOT cache empty results — they are transient failures, not real answers.
+        // Log so we can diagnose which emotions consistently fail hydration.
+        console.warn(`[/api/verses] empty result for emotion="${emotion}" translation=${translationCode} | refs=${refsToHydrate.join(", ")}`);
+        // Return a graceful error so the client can show a retry, not a blank screen
+        return res.status(503).json({ error: "No verses found", retryable: true });
+      }
+
+      // Only cache non-empty results
       verseCache.set(cacheKey, verses);
 
       res.json({ verses });

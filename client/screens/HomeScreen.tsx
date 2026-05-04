@@ -171,6 +171,9 @@ export default function HomeScreen() {
   const handleEmotionSelect = (selectedEmotion: string) => {
     setEmotion(selectedEmotion);
     Haptics.selectionAsync();
+    // Auto-search immediately when a suggestion pill is tapped
+    // so users don't have to tap "Find My Verses" separately
+    setTimeout(() => triggerFindVerses(selectedEmotion), 50);
   };
 
   const handleTranslationSelect = async (translation: string) => {
@@ -269,8 +272,11 @@ export default function HomeScreen() {
     }
   };
 
-  const handleFindVerses = async () => {
-    if (!emotion.trim()) return;
+  // Core search logic — accepts an optional override so pill auto-search
+  // can pass the just-selected value before React state has updated.
+  const triggerFindVerses = async (emotionOverride?: string) => {
+    const query = (emotionOverride ?? emotion).trim();
+    if (!query) return;
 
     setIsLoading(true);
     setError(null);
@@ -281,28 +287,51 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
+      console.log(`[HomeScreen] searching for "${query}" in ${selectedTranslation}`);
       const response = await apiRequest("POST", "/api/verses", {
-        emotion: emotion.trim(),
+        emotion: query,
         translation: selectedTranslation,
         count: 5,
       });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const retryable = (errData as any).retryable === true;
+        console.warn(`[HomeScreen] API error ${response.status} for "${query}":`, errData);
+        setError(
+          retryable
+            ? "Scripture is quiet right now — tap Retry to try again."
+            : "We couldn't find verses right now. Take a breath and try again."
+        );
+        return;
+      }
+
       const data = await response.json();
-      setVerses(data.verses || []);
-      await checkSavedStates(data.verses || []);
-      const newCount = (data.verses?.length || 0);
-      await incrementVersesFound(newCount);
-      showMilestonePromptIfNeeded(newCount);
-      // Track this emotion in recent searches
-      await addRecentSearch(emotion.trim());
+      const found: VerseResult[] = data.verses || [];
+
+      if (found.length === 0) {
+        console.warn(`[HomeScreen] empty verses array returned for "${query}"`);
+        setError("No verses found for that feeling — tap Retry or try a different word.");
+        return;
+      }
+
+      console.log(`[HomeScreen] received ${found.length} verses for "${query}"`);
+      setVerses(found);
+      await checkSavedStates(found);
+      await incrementVersesFound(found.length);
+      showMilestonePromptIfNeeded(found.length);
+      await addRecentSearch(query);
       const updated = await getRecentSearches();
       setRecentEmotions(updated);
     } catch (err) {
       setError("We couldn't find verses right now. Take a breath and try again.");
-      console.error("Error finding verses:", err);
+      console.error("[HomeScreen] Error finding verses:", err);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleFindVerses = () => triggerFindVerses();
 
   const handleSaveVerse = async (verseResult: VerseResult) => {
     const key = `${verseResult.verse}-${verseResult.reference}`;
@@ -650,6 +679,15 @@ export default function HomeScreen() {
           <ThemedText style={[styles.errorText, { color: theme.error }]}>
             {error}
           </ThemedText>
+          {emotion.trim() ? (
+            <Pressable
+              style={[styles.retryButton, { backgroundColor: theme.error }]}
+              onPress={handleFindVerses}
+            >
+              <Feather name="refresh-cw" size={13} color="#fff" />
+              <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+            </Pressable>
+          ) : null}
         </Animated.View>
       ) : null}
 
@@ -923,10 +961,25 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderRadius: BorderRadius.md,
     marginBottom: Spacing.lg,
+    alignItems: "center",
+    gap: Spacing.md,
   },
   errorText: {
     textAlign: "center",
     fontSize: 15,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
   versesContainer: {
     marginBottom: Spacing.lg,
