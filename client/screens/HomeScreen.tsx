@@ -62,6 +62,10 @@ export default function HomeScreen() {
   const [recentEmotions, setRecentEmotions] = useState<string[]>([]);
   const [trendingEmotions, setTrendingEmotions] = useState<string[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // UTC date resolved from the VOTD API — ensures the header always matches the verse
+  // (avoids UTC/local mismatch: e.g. for UTC-3 users the verse flips at 9 PM local time
+  //  while toLocaleDateString() would still show the old date until midnight local)
+  const [votdDate, setVotdDate] = useState<string | null>(null);
 
   // Weekend reading plan nudge (Fri=5, Sat=6, Sun=0)
   const isWeekend = [0, 5, 6].includes(new Date().getDay());
@@ -160,11 +164,14 @@ export default function HomeScreen() {
   };
 
   const formatDate = () => {
-    const date = new Date();
+    // Prefer the UTC date returned by the VOTD API so the header always matches
+    // the verse being displayed. Fall back to local date before the verse loads.
+    const date = votdDate ? new Date(votdDate + "T12:00:00Z") : new Date();
     return date.toLocaleDateString("en-US", {
       weekday: "long",
       month: "long",
       day: "numeric",
+      timeZone: votdDate ? "UTC" : undefined,
     });
   };
 
@@ -467,7 +474,7 @@ export default function HomeScreen() {
         </ThemedText>
       </View>
 
-      <VerseOfTheDay />
+      <VerseOfTheDay onDateResolved={setVotdDate} />
 
       <ThemedText type="h2" style={styles.promptText}>
         How are you feeling?

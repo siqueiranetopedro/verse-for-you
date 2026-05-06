@@ -15,10 +15,17 @@ interface DailyVerse {
   reference: string;
   translation: string;
   theme: string;
-  date: string;
+  date: string; // UTC date string "YYYY-MM-DD" — matches the server's verse selection
 }
 
-export default function VerseOfTheDay() {
+interface Props {
+  // Called once the verse loads with the UTC date the server used for selection.
+  // Use this to synchronize the date header in the parent screen so it always
+  // matches the verse being displayed (avoids UTC/local timezone mismatch).
+  onDateResolved?: (utcDate: string) => void;
+}
+
+export default function VerseOfTheDay({ onDateResolved }: Props) {
   const { theme, isDark } = useTheme();
   const [dailyVerse, setDailyVerse] = useState<DailyVerse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,6 +46,10 @@ export default function VerseOfTheDay() {
       );
       const data = await response.json();
       setDailyVerse(data);
+      // Notify parent of the server's UTC date so the header always matches the verse
+      if (data.date && onDateResolved) {
+        onDateResolved(data.date);
+      }
       const saved = await isVerseSaved(data.verse, data.reference);
       setIsSaved(saved);
     } catch (err) {

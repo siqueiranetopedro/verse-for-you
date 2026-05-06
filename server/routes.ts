@@ -141,6 +141,84 @@ const askVerseCache = new TTLCache<string>(120);
 // Cache related verses for 4 hours (same verse → same relatives)
 const relatedVersesCache = new TTLCache<any[]>(240);
 
+// === Deterministic Daily Verse Rotation ===
+// Verses are selected by (days since Unix epoch) % DAILY_VERSE_ROTATION.length.
+// Same UTC date → always same verse, survives server restarts, changes every day.
+// Isaiah 40:31 is at index 59 = 2026-05-06 (today when this was deployed).
+const DAILY_VERSE_ROTATION: Array<{ reference: string; theme: string }> = [
+  { reference: "Lamentations 3:22-23",   theme: "New Mercies"     }, // 0
+  { reference: "Psalm 46:10",            theme: "Stillness"       }, // 1
+  { reference: "Romans 8:28",            theme: "Purpose"         }, // 2
+  { reference: "John 14:27",             theme: "Peace"           }, // 3
+  { reference: "Philippians 4:6-7",      theme: "Anxiety"         }, // 4
+  { reference: "Proverbs 3:5-6",         theme: "Trust"           }, // 5
+  { reference: "Psalm 34:18",            theme: "Comfort"         }, // 6
+  { reference: "2 Timothy 1:7",          theme: "Power"           }, // 7
+  { reference: "Hebrews 11:1",           theme: "Faith"           }, // 8
+  { reference: "Matthew 11:28",          theme: "Rest"            }, // 9
+  { reference: "Isaiah 43:2",            theme: "Presence"        }, // 10
+  { reference: "Romans 15:13",           theme: "Hope"            }, // 11
+  { reference: "Psalm 121:1-2",          theme: "Help"            }, // 12
+  { reference: "John 10:10",             theme: "Abundance"       }, // 13
+  { reference: "2 Corinthians 12:9",     theme: "Grace"           }, // 14
+  { reference: "Joshua 1:9",             theme: "Courage"         }, // 15
+  { reference: "Psalm 139:14",           theme: "Identity"        }, // 16
+  { reference: "Ephesians 3:20",         theme: "Abundance"       }, // 17
+  { reference: "1 Peter 5:7",            theme: "Care"            }, // 18
+  { reference: "Zephaniah 3:17",         theme: "Rejoicing"       }, // 19
+  { reference: "Psalm 27:1",             theme: "Confidence"      }, // 20
+  { reference: "Romans 12:2",            theme: "Renewal"         }, // 21
+  { reference: "Colossians 3:23",        theme: "Purpose"         }, // 22
+  { reference: "Isaiah 41:10",           theme: "Courage"         }, // 23
+  { reference: "Psalm 118:24",           theme: "Gratitude"       }, // 24
+  { reference: "James 1:5",              theme: "Wisdom"          }, // 25
+  { reference: "Romans 8:38-39",         theme: "Security"        }, // 26
+  { reference: "Micah 6:8",              theme: "Justice"         }, // 27
+  { reference: "Psalm 55:22",            theme: "Trust"           }, // 28
+  { reference: "Hebrews 12:1-2",         theme: "Perseverance"    }, // 29
+  { reference: "John 16:33",             theme: "Overcoming"      }, // 30
+  { reference: "Psalm 30:5",             theme: "Joy"             }, // 31
+  { reference: "Ephesians 2:8-9",        theme: "Salvation"       }, // 32
+  { reference: "Deuteronomy 31:8",       theme: "Guidance"        }, // 33
+  { reference: "Romans 5:8",             theme: "Love"            }, // 34
+  { reference: "Psalm 91:1",             theme: "Protection"      }, // 35
+  { reference: "1 Corinthians 13:4-5",   theme: "Love"            }, // 36
+  { reference: "Isaiah 26:3",            theme: "Peace"           }, // 37
+  { reference: "Romans 8:1",             theme: "Freedom"         }, // 38
+  { reference: "Psalm 62:1-2",           theme: "Rest"            }, // 39
+  { reference: "Matthew 6:33",           theme: "Priorities"      }, // 40
+  { reference: "Habakkuk 3:19",          theme: "Strength"        }, // 41
+  { reference: "1 Thessalonians 5:16-18", theme: "Rejoicing"      }, // 42
+  { reference: "Psalm 103:2-3",          theme: "Gratitude"       }, // 43
+  { reference: "James 4:8",              theme: "Nearness"        }, // 44
+  { reference: "2 Chronicles 7:14",      theme: "Healing"         }, // 45
+  { reference: "Psalm 16:8",             theme: "Steadiness"      }, // 46
+  { reference: "Jeremiah 29:11",         theme: "Hope"            }, // 47
+  { reference: "Psalm 84:11",            theme: "Goodness"        }, // 48
+  { reference: "Nehemiah 8:10",          theme: "Joy"             }, // 49
+  { reference: "Luke 1:37",              theme: "Possibility"     }, // 50
+  { reference: "Psalm 73:26",            theme: "Strength"        }, // 51
+  { reference: "2 Corinthians 4:17",     theme: "Endurance"       }, // 52
+  { reference: "Psalm 145:18",           theme: "Nearness"        }, // 53
+  { reference: "Ephesians 4:32",         theme: "Forgiveness"     }, // 54
+  { reference: "Proverbs 31:25",         theme: "Dignity"         }, // 55
+  { reference: "Isaiah 54:10",           theme: "Steadfast Love"  }, // 56
+  { reference: "Psalm 37:4",             theme: "Delight"         }, // 57
+  { reference: "1 John 4:18",            theme: "Love"            }, // 58 — May 5
+  { reference: "Isaiah 40:31",           theme: "Endurance"       }, // 59 — May 6 (deploy day)
+];
+
+/**
+ * Returns the VOTD index for a given "YYYY-MM-DD" UTC date string.
+ * Deterministic: same date → same index, regardless of server state.
+ */
+function getVOTDForDate(dateStr: string): { reference: string; theme: string } {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const daysSinceEpoch = Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  const index = daysSinceEpoch % DAILY_VERSE_ROTATION.length;
+  return DAILY_VERSE_ROTATION[index];
+}
+
 // --- Trending Emotions Tracker (in-memory, privacy-safe, no PII) ---
 // Tracks how many times each emotion has been searched across all sessions.
 // Resets on server restart. Used to power "Trending" UI on the HomeScreen.
@@ -612,74 +690,37 @@ Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include
     }
   });
 
-  // Verse of the Day — changes daily, cached for 24 hours
+  // Verse of the Day — changes daily based on deterministic UTC-date rotation.
+  // Phase 1 (reference selection) is no longer AI-powered — it uses DAILY_VERSE_ROTATION
+  // indexed by (days since epoch) % rotation length. This guarantees:
+  //   • Same verse served for the same UTC date regardless of server restarts
+  //   • Verse always changes at UTC midnight (never repeats two consecutive days)
+  //   • No OpenAI call needed for Phase 1 → faster and cheaper
+  // Phase 2 (hydration) still uses AI to fetch actual verse text in the chosen translation.
   app.get("/api/verse-of-day", async (req: Request, res: Response) => {
     if (!applyRateLimit(aiLimiter, req, res)) return;
     try {
-      const today = new Date().toISOString().split("T")[0]; // e.g. "2026-04-06"
+      const today = new Date().toISOString().split("T")[0]; // UTC date, e.g. "2026-05-06"
       const translation = (req.query.translation as string) || "NIV";
 
       // Full result cache — if we already have this translation for today, return immediately
       const fullCacheKey = `votd-${today}-${translation}`;
       const cached = dailyVerseCache.get(fullCacheKey);
       if (cached) {
+        console.log(`[votd] date=${today} tz=UTC translation=${translation} cache=HIT ref=${cached.reference}`);
         return res.json(cached);
       }
 
       const translationName = TRANSLATIONS[translation] || TRANSLATIONS["NIV"];
 
-      // Phase 1: Reference selection is shared across ALL translations for the day.
-      // This ensures the same verse is shown regardless of which translation the user picks.
-      const refCacheKey = `votd-ref-${today}`;
-      let selectionParsed: { reference: string; theme: string } | undefined =
-        dailyVerseCache.get(refCacheKey);
+      // Phase 1: Deterministic reference selection — no AI needed.
+      // getVOTDForDate() hashes the UTC date to a stable index in DAILY_VERSE_ROTATION.
+      const selection = getVOTDForDate(today);
+      console.log(`[votd] date=${today} tz=UTC translation=${translation} cache=MISS ref=${selection.reference} theme=${selection.theme}`);
 
-      if (!selectionParsed) {
-        const seasonal = getSeasonalContext();
-        const dayHint = getDayOfWeekVOTDHint();
-
-        const prompt = `Today is ${today}. ${seasonal} Select one uplifting Bible verse REFERENCE suitable as a "Verse of the Day".
-
-Day-of-week guidance: ${dayHint}
-
-Consider the season, time of day, AND the specific day of the week when choosing — e.g. morning verses of awakening, evening verses of peace, Monday verses of fresh starts, Friday verses of rest.
-
-Vary your selection widely across Scripture — Psalms, Proverbs, Isaiah, Lamentations, the Gospels, Epistles, etc. Avoid defaulting to a small set of famous verses. Prefer beautiful but less-quoted passages that will feel like a discovery.
-
-Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include verse text:
-{"reference": "Book Chapter:Verse", "theme": "A one or two word theme, e.g. Fresh Start, Rest, Endurance, Gratitude"}`;
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: "You are a helpful Bible assistant. Respond with valid JSON only. Return only a reference and theme — no verse text.",
-            },
-            { role: "user", content: prompt },
-          ],
-          max_completion_tokens: 80,
-        });
-
-        const content = response.choices[0]?.message?.content?.trim() || "";
-        try {
-          selectionParsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-        } catch {
-          selectionParsed = { reference: "Jeremiah 29:11", theme: "Hope" };
-        }
-
-        // Validate the returned reference — fall back to known-good if hallucinated
-        if (!isValidBibleReference(selectionParsed!.reference)) {
-          selectionParsed = { reference: "Psalm 118:24", theme: "Gratitude" };
-        }
-
-        // Cache the reference for the whole day (all translations share it)
-        dailyVerseCache.set(refCacheKey, selectionParsed);
-      }
-
-      // Phase 2: Hydrate with actual verse text in the requested translation
+      // Phase 2: Hydrate — fetch actual verse text in the requested translation.
       const hydrated = await hydrateVerseTexts(
-        [selectionParsed!.reference],
+        [selection.reference],
         translation,
         translationName
       );
@@ -689,15 +730,15 @@ Respond with ONLY a JSON object (no markdown, no code blocks) — do NOT include
 
       const result = {
         verse: verseText,
-        reference: selectionParsed!.reference,
-        theme: selectionParsed!.theme,
+        reference: selection.reference,
+        theme: selection.theme,
         translation,
         date: today,
       };
       dailyVerseCache.set(fullCacheKey, result);
       res.json(result);
     } catch (error) {
-      console.error("Error fetching verse of the day:", error);
+      console.error("[votd] Error fetching verse of the day:", error);
       res.status(500).json({ error: "Failed to fetch verse of the day" });
     }
   });
